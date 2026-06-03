@@ -1,0 +1,39 @@
+.travel-bti-page-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #eef8fa;
+}
+
+.travel-bti-background {
+  position: fixed;
+  inset: 0;
+  background-image: url("../../../assets/travel-bti-test/travel-bti-page-background.png");
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: cover;
+}
+
+.travel-bti-page-inner {
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - 88px);
+  padding: 36px 56px 64px;
+}
+
+.travel-bti-page-shell.compact .travel-bti-page-inner {
+  padding-top: 28px;
+  padding-bottom: 28px;
+}
+
+@media (max-width: 980px) {
+  .travel-bti-page-inner {
+    padding: 28px 28px 40px;
+  }
+}
+
+@media (max-width: 560px) {
+  .travel-bti-page-inner {
+    padding: 22px 16px 28px;
+  }
+}

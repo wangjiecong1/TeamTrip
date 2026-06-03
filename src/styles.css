@@ -1,0 +1,42 @@
+:root {
+  --tt-primary: #00a889;
+  --tt-primary-hover: #07977d;
+  --tt-primary-soft: #e6f8f5;
+  --tt-blue: #3b82f6;
+  --tt-blue-soft: #eaf3ff;
+  --tt-bg: #f7fafc;
+  --tt-bg-gradient-start: #effaf8;
+  --tt-bg-gradient-end: #f7fafc;
+  --tt-card: #ffffff;
+  --tt-text: #102033;
+  --tt-text-secondary: #64748b;
+  --tt-text-muted: #94a3b8;
+  --tt-border: #e2e8f0;
+  --tt-border-strong: #cbd5e1;
+  --tt-shadow-card: 0 20px 60px rgba(15, 23, 42, 0.08);
+  --tt-shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.06);
+  color: var(--tt-text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: var(--tt-bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--tt-bg);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
