@@ -1,18 +1,17 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import {
   CalendarDays,
-  Check,
   ChevronDown,
   Globe2,
   Headphones,
-  LockKeyhole,
   MapPin,
   SmilePlus,
-  User,
   UserPlus,
 } from "lucide-react";
+import { Button, Checkbox, Form, Input } from "antd";
+import { LockOutlined, MailOutlined, PhoneOutlined, UserOutlined } from "@ant-design/icons";
 import loginHeroApproved from "../../../assets/login-register/login-register-hero-approved.webp";
 import { BrandMark } from "../../components/BrandMark";
 import { FeatureItem } from "../../components/FeatureItem";
@@ -21,13 +20,14 @@ import "./index.less";
 
 type AuthMode = "login" | "register";
 
-const initialForm = {
-  nickname: "",
-  username: "",
-  password: "",
-  confirmPassword: "",
-  email: "",
-  phone: "",
+type FormValues = {
+  nickname?: string;
+  username?: string;
+  password?: string;
+  confirmPassword?: string;
+  email?: string;
+  phone?: string;
+  agreement?: boolean;
 };
 
 const getLoginToken = (response: LoginResponse) => response.accessToken || response.token || "";
@@ -35,9 +35,22 @@ const getLoginToken = (response: LoginResponse) => response.accessToken || respo
 export function LoginRegisterPage() {
   const navigate = useNavigate();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [form, setForm] = useState(initialForm);
-  const [isAgreementChecked, setIsAgreementChecked] = useState(true);
   const [message, setMessage] = useState("");
+  const [formInstance] = Form.useForm<FormValues>();
+  const hasValidAccessToken = authTokenStorage.isAccessTokenValid();
+  const hasRefreshToken = Boolean(authTokenStorage.getRefresh());
+  const shouldRedirectAuthenticatedUser = hasValidAccessToken || hasRefreshToken;
+  const shouldClearExpiredSession = !shouldRedirectAuthenticatedUser && Boolean(authTokenStorage.get());
+
+  useEffect(() => {
+    if (shouldClearExpiredSession) {
+      authTokenStorage.clear();
+    }
+  }, [shouldClearExpiredSession]);
+
+  if (shouldRedirectAuthenticatedUser) {
+    return <Navigate to="/teams" replace />;
+  }
 
   const handleLoginSuccess = (loginResponse: LoginResponse, fallbackUser: { username: string; nickname?: string }) => {
     const token = getLoginToken(loginResponse);
@@ -48,6 +61,11 @@ export function LoginRegisterPage() {
     }
 
     authTokenStorage.set(token);
+    if (loginResponse.refreshToken) {
+      authTokenStorage.setRefresh(loginResponse.refreshToken);
+    } else {
+      authTokenStorage.clearRefresh();
+    }
     window.localStorage.setItem(
       "teamtrip-auth-user",
       JSON.stringify(loginResponse.user ?? { username: fallbackUser.username.trim(), nickname: fallbackUser.nickname?.trim() || fallbackUser.username.trim() }),
@@ -58,7 +76,8 @@ export function LoginRegisterPage() {
   const loginMutation = useMutation({
     mutationFn: (request: LoginRequest) => authService.login(request),
     onSuccess: (loginResponse) => {
-      handleLoginSuccess(loginResponse, { username: form.username });
+      const values = formInstance.getFieldsValue();
+      handleLoginSuccess(loginResponse, { username: values.username ?? "" });
     },
     onError: (error) => {
       setMessage(error instanceof ApiError ? error.message : "登录失败，请稍后重试");
@@ -76,7 +95,8 @@ export function LoginRegisterPage() {
       });
     },
     onSuccess: (loginResponse) => {
-      handleLoginSuccess(loginResponse, { username: form.username, nickname: form.nickname });
+      const values = formInstance.getFieldsValue();
+      handleLoginSuccess(loginResponse, { username: values.username ?? "", nickname: values.nickname });
     },
     onError: (error) => {
       setMessage(error instanceof ApiError ? error.message : "注册失败，请稍后重试");
@@ -86,44 +106,30 @@ export function LoginRegisterPage() {
   const isRegisterMode = authMode === "register";
   const isSubmitting = registerMutation.isPending || loginMutation.isPending;
 
-  const updateField = (field: keyof typeof initialForm, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
-    setMessage("");
-  };
-
   const switchMode = (nextMode: AuthMode) => {
     setAuthMode(nextMode);
-    setForm(initialForm);
-    setIsAgreementChecked(true);
+    formInstance.resetFields();
     setMessage("");
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleFinish = (values: FormValues) => {
+    setMessage("");
 
     if (isRegisterMode) {
-      if (isSubmitting) {
-        return;
-      }
-
       registerMutation.mutate({
-        username: form.username,
-        password: form.password,
-        confirmPassword: form.confirmPassword,
-        nickname: form.nickname,
-        email: form.email,
-        phone: form.phone,
+        username: values.username ?? "",
+        password: values.password ?? "",
+        confirmPassword: values.confirmPassword ?? "",
+        nickname: values.nickname ?? "",
+        email: values.email,
+        phone: values.phone,
       });
       return;
     }
 
-    if (isSubmitting) {
-      return;
-    }
-
     loginMutation.mutate({
-      username: form.username,
-      password: form.password,
+      username: values.username ?? "",
+      password: values.password ?? "",
       rememberMe: false,
     });
   };
@@ -173,11 +179,20 @@ export function LoginRegisterPage() {
       </section>
 
       <section className="auth-panel" aria-label={`${isRegisterMode ? "注册" : "登录"} TeamTrip`}>
-        <form className="login-card" onSubmit={handleSubmit}>
+        <Form<FormValues>
+          className="login-card"
+          form={formInstance}
+          layout="vertical"
+          requiredMark={false}
+          initialValues={{ agreement: true }}
+          onValuesChange={() => setMessage("")}
+          onFinish={handleFinish}
+        >
           <div className="card-heading">
             <h2>{isRegisterMode ? "创建账号" : "欢迎回来"}</h2>
             <p>{isRegisterMode ? "注册 TeamTrip，和伙伴开始规划旅程" : "登录 TeamTrip，继续你的旅行计划"}</p>
           </div>
+
           <div className="tabs" role="tablist" aria-label="登录方式">
             <button className="tab active" type="button" role="tab" aria-selected="true">
               账号密码登录
@@ -190,101 +205,95 @@ export function LoginRegisterPage() {
           </div>
 
           {isRegisterMode && (
-            <label className="input-row">
-              <UserPlus className="input-icon" size={19} aria-hidden="true" />
-              <input
-                type="text"
-                placeholder="请输入昵称"
-                aria-label="昵称"
-                autoComplete="nickname"
-                value={form.nickname}
-                onChange={(event) => updateField("nickname", event.target.value)}
-              />
-            </label>
+            <Form.Item
+              name="nickname"
+              rules={[{ required: true, message: "请输入昵称" }]}
+            >
+              <Input prefix={<UserOutlined />} placeholder="请输入昵称" autoComplete="nickname" aria-label="昵称" />
+            </Form.Item>
           )}
 
-          <label className={`input-row ${isRegisterMode ? "compact-row" : ""}`}>
-            <User className="input-icon" size={19} aria-hidden="true" />
-            <input
-              type="text"
+          <Form.Item
+            name="username"
+            rules={[
+              { required: true, message: isRegisterMode ? "请输入用户名" : "请输入账号" },
+              { min: 3, message: "账号至少 3 位" },
+            ]}
+          >
+            <Input
+              prefix={<UserOutlined />}
               placeholder={isRegisterMode ? "请输入用户名" : "请输入账号"}
-              aria-label={isRegisterMode ? "用户名" : "账号"}
               autoComplete="username"
-              value={form.username}
-              onChange={(event) => updateField("username", event.target.value)}
+              aria-label={isRegisterMode ? "用户名" : "账号"}
             />
-          </label>
+          </Form.Item>
 
-          <label className="input-row password-row">
-            <LockKeyhole className="input-icon" size={19} aria-hidden="true" />
-            <input
-              type="password"
+          <Form.Item
+            name="password"
+            rules={[
+              { required: true, message: "请输入密码" },
+              { min: 6, message: "密码至少 6 位" },
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
               placeholder="请输入密码"
-              aria-label="密码"
               autoComplete={isRegisterMode ? "new-password" : "current-password"}
-              value={form.password}
-              onChange={(event) => updateField("password", event.target.value)}
+              aria-label="密码"
             />
-          </label>
+          </Form.Item>
 
           {isRegisterMode && (
-            <label className="input-row password-row">
-              <LockKeyhole className="input-icon" size={19} aria-hidden="true" />
-              <input
-                type="password"
+            <Form.Item
+              name="confirmPassword"
+              dependencies={["password"]}
+              rules={[
+                { required: true, message: "请再次输入密码" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue("password") === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error("两次输入的密码不一致"));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
                 placeholder="请再次输入密码"
-                aria-label="确认密码"
                 autoComplete="new-password"
-                value={form.confirmPassword}
-                onChange={(event) => updateField("confirmPassword", event.target.value)}
+                aria-label="确认密码"
               />
-            </label>
+            </Form.Item>
           )}
 
           {isRegisterMode && (
-            <>
-              <label className="input-row compact-row">
-                <User className="input-icon" size={19} aria-hidden="true" />
-                <input
-                  type="email"
-                  placeholder="邮箱（选填）"
-                  aria-label="邮箱"
-                  autoComplete="email"
-                  value={form.email}
-                  onChange={(event) => updateField("email", event.target.value)}
-                />
-              </label>
-
-              <label className="input-row password-row">
-                <User className="input-icon" size={19} aria-hidden="true" />
-                <input
-                  type="tel"
-                  placeholder="手机号（选填）"
-                  aria-label="手机号"
-                  autoComplete="tel"
-                  value={form.phone}
-                  onChange={(event) => updateField("phone", event.target.value)}
-                />
-              </label>
-            </>
+            <Form.Item name="email">
+              <Input prefix={<MailOutlined />} type="email" placeholder="邮箱（选填）" autoComplete="email" aria-label="邮箱" />
+            </Form.Item>
           )}
 
-          <label className="agreement">
-            <input
-              type="checkbox"
-              checked={isAgreementChecked}
-              onChange={(event) => {
-                setIsAgreementChecked(event.target.checked);
-                setMessage("");
-              }}
-            />
-            <span className="checkmark" aria-hidden="true">
-              <Check size={14} strokeWidth={3} />
-            </span>
-            <span>
+          {isRegisterMode && (
+            <Form.Item name="phone">
+              <Input prefix={<PhoneOutlined />} type="tel" placeholder="手机号（选填）" autoComplete="tel" aria-label="手机号" />
+            </Form.Item>
+          )}
+
+          <Form.Item
+            name="agreement"
+            valuePropName="checked"
+            rules={[
+              {
+                validator: (_, value: boolean) =>
+                  value ? Promise.resolve() : Promise.reject(new Error("请先同意用户协议")),
+              },
+            ]}
+          >
+            <Checkbox>
               我已阅读并同意 <a href="#">《用户协议》</a> 和 <a href="#">《隐私政策》</a>
-            </span>
-          </label>
+            </Checkbox>
+          </Form.Item>
 
           {message && (
             <p className="auth-message" role="alert">
@@ -292,19 +301,25 @@ export function LoginRegisterPage() {
             </p>
           )}
 
-          <button className="primary-button" type="submit" disabled={isSubmitting}>
-            {isRegisterMode ? (isSubmitting ? "注册并登录中..." : "注册并进入") : isSubmitting ? "登录中..." : "登录"}
-          </button>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block size="large" loading={isSubmitting}>
+              {isRegisterMode ? "注册并进入" : "登录"}
+            </Button>
+          </Form.Item>
 
           <div className="divider">
             <span>或</span>
           </div>
 
-          <button className="secondary-button" type="button" onClick={() => switchMode(isRegisterMode ? "login" : "register")}>
-            <UserPlus size={19} />
+          <Button
+            block
+            size="large"
+            icon={<UserPlus size={19} />}
+            onClick={() => switchMode(isRegisterMode ? "login" : "register")}
+          >
             {isRegisterMode ? "已有账号，去登录" : "立即注册"}
-          </button>
-        </form>
+          </Button>
+        </Form>
 
         <footer className="page-footer">
           <a href="#">

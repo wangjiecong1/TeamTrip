@@ -279,12 +279,11 @@ export function MyTeamsPage() {
   const handleLogout = async () => {
     try {
       await authService.logout();
-    } catch {
-      // The local session should be cleared even if the server logout endpoint is unavailable.
-    } finally {
       authTokenStorage.clear();
       window.localStorage.removeItem("teamtrip-auth-user");
       navigate("/login");
+    } catch {
+      showToast("退出登录失败，请稍后重试");
     }
   };
 

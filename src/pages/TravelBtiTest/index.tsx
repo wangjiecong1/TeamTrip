@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
 import { TravelBtiPageShell } from "../../components/TravelBtiPageShell";
+import { authService, authTokenStorage } from "../../services";
 import signpostIllustration from "../../../assets/travel-bti-test/travel-bti-test-side-signpost.png";
 import "./index.less";
 
@@ -96,6 +97,17 @@ export function TravelBtiTestPage() {
   const isLastQuestion = currentQuestionIndex === mockQuestions.length - 1;
   const progressPercent = ((currentQuestionIndex + 1) / mockQuestions.length) * 100;
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      authTokenStorage.clear();
+      window.localStorage.removeItem("teamtrip-auth-user");
+      navigate("/login");
+    } catch {
+      // Keep the current login state when the logout API fails.
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (transitionTimerRef.current) {
@@ -174,6 +186,7 @@ export function TravelBtiTestPage() {
       header={
         <AppHeader
           title="Travel-BTI 测试"
+          onLogout={handleLogout}
           actions={[
             {
               label: "退出测试",

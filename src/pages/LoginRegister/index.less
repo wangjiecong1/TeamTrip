@@ -139,6 +139,27 @@
   box-shadow: var(--tt-shadow-card);
 }
 
+.login-card .tabs + .ant-form-item {
+  margin-top: 32px;
+}
+
+.login-card .ant-form-item {
+  margin-bottom: 18px;
+}
+
+.login-card .ant-input-prefix,
+.login-card .ant-input-password .ant-input-prefix {
+  color: #94a3b8;
+  margin-right: 10px;
+  font-size: 16px;
+}
+
+.login-card a {
+  color: var(--tt-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .card-heading {
   text-align: center;
 }
@@ -188,137 +209,12 @@
   border-radius: 999px 999px 0 0;
 }
 
-.input-row {
-  display: flex;
-  align-items: center;
-  height: 58px;
-  margin-top: 32px;
-  padding: 0 20px;
-  color: var(--tt-text-muted);
-  background: #fff;
-  border: 1px solid var(--tt-border);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
-  transition: border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.input-row:focus-within {
-  border-color: var(--tt-primary);
-  box-shadow: 0 0 0 4px rgba(0, 168, 137, 0.12);
-}
-
-.password-row {
-  margin-top: 16px;
-}
-
-.compact-row {
-  margin-top: 16px;
-}
-
-.input-icon {
-  flex: 0 0 auto;
-  margin-right: 16px;
-  color: #94a3b8;
-}
-
-.input-row input {
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  color: var(--tt-text);
-  background: transparent;
-  border: 0;
-  outline: 0;
-}
-
-.input-row input::placeholder {
-  color: #a8b3c2;
-}
-
-.code-button {
-  flex: 0 0 auto;
-  padding: 0;
-  color: var(--tt-primary);
-  font-size: 14px;
-  font-weight: 700;
-  white-space: nowrap;
-  background: transparent;
-  border: 0;
-}
-
-.agreement {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 24px;
-  color: var(--tt-text-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.agreement input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.checkmark {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: #fff;
-  background: var(--tt-primary);
-  border-radius: 5px;
-}
-
-.agreement input:not(:checked) + .checkmark {
-  color: transparent;
-  background: #fff;
-  border: 1px solid var(--tt-border-strong);
-}
-
-.agreement a {
-  color: var(--tt-primary);
-  font-weight: 600;
-  text-decoration: none;
-}
-
 .auth-message {
-  margin: 14px 0 0;
+  margin: 4px 0 0;
   color: var(--tt-danger);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.5;
-}
-
-.primary-button,
-.secondary-button,
-.invite-card {
-  width: 100%;
-}
-
-.primary-button {
-  height: 56px;
-  margin-top: 24px;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 700;
-  background: var(--tt-primary);
-  border: 0;
-  border-radius: 8px;
-  box-shadow: 0 16px 28px rgba(0, 168, 137, 0.16);
-}
-
-.primary-button:hover {
-  background: var(--tt-primary-hover);
-}
-
-.primary-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.68;
-  box-shadow: none;
 }
 
 .divider {
@@ -336,68 +232,6 @@
   flex: 1;
   content: "";
   background: linear-gradient(90deg, transparent, var(--tt-border), transparent);
-}
-
-.secondary-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  height: 56px;
-  color: var(--tt-text);
-  font-size: 16px;
-  font-weight: 700;
-  background: #fff;
-  border: 1px solid var(--tt-border);
-  border-radius: 8px;
-}
-
-.secondary-button svg {
-  color: var(--tt-text-secondary);
-}
-
-.invite-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 16px;
-  align-items: center;
-  margin-top: 36px;
-  padding: 16px 18px;
-  text-align: left;
-  background: #fff;
-  border: 1px solid var(--tt-border);
-  border-radius: 8px;
-}
-
-.gift-icon {
-  display: grid;
-  width: 50px;
-  height: 50px;
-  place-items: center;
-  color: var(--tt-primary);
-  background: var(--tt-primary-soft);
-  border-radius: 50%;
-}
-
-.invite-card strong,
-.invite-card small {
-  display: block;
-}
-
-.invite-card strong {
-  color: var(--tt-text);
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.invite-card small {
-  margin-top: 7px;
-  color: var(--tt-text-secondary);
-  font-size: 13px;
-}
-
-.arrow-icon {
-  color: var(--tt-text-secondary);
 }
 
 .page-footer {
@@ -567,32 +401,6 @@
 
   .tabs {
     margin-top: 32px;
-  }
-
-  .input-row {
-    height: 54px;
-    margin-top: 24px;
-    border-radius: 10px;
-  }
-
-  .code-row {
-    margin-top: 14px;
-  }
-
-  .agreement {
-    align-items: flex-start;
-    font-size: 13px;
-  }
-
-  .primary-button,
-  .secondary-button {
-    height: 54px;
-    border-radius: 10px;
-  }
-
-  .invite-card {
-    margin-top: 28px;
-    border-radius: 10px;
   }
 
   .page-footer {

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
 import { TravelBtiPageShell } from "../../components/TravelBtiPageShell";
+import { authService, authTokenStorage } from "../../services";
 import personaAvatar from "../../../assets/travel-bti-result/travel-bti-result-persona-avatar.png";
 import personaBanner from "../../../assets/travel-bti-result/travel-bti-result-persona-banner.png";
 import "./index.less";
@@ -49,6 +50,17 @@ const travelTips = [
 export function TestResultPage() {
   const navigate = useNavigate();
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      authTokenStorage.clear();
+      window.localStorage.removeItem("teamtrip-auth-user");
+      navigate("/login");
+    } catch {
+      // Keep the current login state when the logout API fails.
+    }
+  };
+
   return (
     <TravelBtiPageShell
       compact
@@ -69,6 +81,7 @@ export function TestResultPage() {
               variant: "primary",
             },
           ]}
+          onLogout={handleLogout}
         />
       }
     >
