@@ -31,6 +31,7 @@ type FormValues = {
 };
 
 const getLoginToken = (response: LoginResponse) => response.accessToken || response.token || "";
+const silentRequiredRule = { required: true, message: "" };
 
 export function LoginRegisterPage() {
   const navigate = useNavigate();
@@ -157,7 +158,7 @@ export function LoginRegisterPage() {
 
         <div className="feature-strip" aria-label="TeamTrip 功能">
           <FeatureItem tone="green" icon={<SmilePlus size={24} />} title="测出团队旅行偏好">
-            通过 Travel-BTI 测试
+            通过 Trip-BTI 测试
             <br />
             了解彼此的旅行风格
           </FeatureItem>
@@ -206,19 +207,18 @@ export function LoginRegisterPage() {
 
           {isRegisterMode && (
             <Form.Item
+              className="auth-field"
               name="nickname"
-              rules={[{ required: true, message: "请输入昵称" }]}
+              rules={[silentRequiredRule]}
             >
               <Input prefix={<UserOutlined />} placeholder="请输入昵称" autoComplete="nickname" aria-label="昵称" />
             </Form.Item>
           )}
 
           <Form.Item
+            className="auth-field"
             name="username"
-            rules={[
-              { required: true, message: isRegisterMode ? "请输入用户名" : "请输入账号" },
-              { min: 3, message: "账号至少 3 位" },
-            ]}
+            rules={[silentRequiredRule]}
           >
             <Input
               prefix={<UserOutlined />}
@@ -229,11 +229,9 @@ export function LoginRegisterPage() {
           </Form.Item>
 
           <Form.Item
+            className="auth-field"
             name="password"
-            rules={[
-              { required: true, message: "请输入密码" },
-              { min: 6, message: "密码至少 6 位" },
-            ]}
+            rules={[silentRequiredRule]}
           >
             <Input.Password
               prefix={<LockOutlined />}
@@ -245,10 +243,11 @@ export function LoginRegisterPage() {
 
           {isRegisterMode && (
             <Form.Item
+              className="auth-field"
               name="confirmPassword"
               dependencies={["password"]}
               rules={[
-                { required: true, message: "请再次输入密码" },
+                silentRequiredRule,
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue("password") === value) {
@@ -269,26 +268,21 @@ export function LoginRegisterPage() {
           )}
 
           {isRegisterMode && (
-            <Form.Item name="email">
+            <Form.Item className="auth-field" name="email">
               <Input prefix={<MailOutlined />} type="email" placeholder="邮箱（选填）" autoComplete="email" aria-label="邮箱" />
             </Form.Item>
           )}
 
           {isRegisterMode && (
-            <Form.Item name="phone">
+            <Form.Item className="auth-field" name="phone">
               <Input prefix={<PhoneOutlined />} type="tel" placeholder="手机号（选填）" autoComplete="tel" aria-label="手机号" />
             </Form.Item>
           )}
 
           <Form.Item
+            className="auth-agreement"
             name="agreement"
             valuePropName="checked"
-            rules={[
-              {
-                validator: (_, value: boolean) =>
-                  value ? Promise.resolve() : Promise.reject(new Error("请先同意用户协议")),
-              },
-            ]}
           >
             <Checkbox>
               我已阅读并同意 <a href="#">《用户协议》</a> 和 <a href="#">《隐私政策》</a>
@@ -301,7 +295,7 @@ export function LoginRegisterPage() {
             </p>
           )}
 
-          <Form.Item>
+          <Form.Item className="auth-submit">
             <Button type="primary" htmlType="submit" block size="large" loading={isSubmitting}>
               {isRegisterMode ? "注册并进入" : "登录"}
             </Button>

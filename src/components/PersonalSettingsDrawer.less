@@ -1,0 +1,129 @@
+.personal-settings-drawer .ant-drawer-content {
+  background: #fff;
+}
+
+.personal-settings-drawer .ant-drawer-header {
+  padding: 22px 24px;
+  border-bottom: 1px solid #eef2f6;
+}
+
+.personal-settings-drawer .ant-drawer-title {
+  color: var(--tt-text);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.personal-settings-drawer .ant-drawer-body {
+  padding: 24px;
+}
+
+.personal-settings-profile {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eef2f6;
+}
+
+.personal-settings-profile .ant-avatar {
+  background: var(--tt-primary-soft);
+}
+
+.personal-settings-profile h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--tt-text);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-settings-profile p {
+  overflow: hidden;
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-settings-profile__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.personal-settings-profile__tags .ant-tag {
+  margin-inline-end: 0;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.personal-settings-trip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 13px 14px;
+  color: #087c6a;
+  background: #f0fbf8;
+  border: 1px solid #d4f0ea;
+  border-radius: 14px;
+}
+
+.personal-settings-trip span {
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.personal-settings-trip strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.personal-settings-tabs {
+  margin-top: 18px;
+}
+
+.personal-settings-tabs .ant-tabs-nav {
+  margin-bottom: 20px;
+}
+
+.personal-settings-form .ant-form-item-label > label {
+  color: var(--tt-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.personal-settings-form .ant-input,
+.personal-settings-form .ant-input-affix-wrapper {
+  color: var(--tt-text);
+}
+
+.personal-settings-form .ant-btn-primary {
+  height: 44px;
+  margin-top: 4px;
+  background: var(--tt-primary);
+  border-color: var(--tt-primary);
+  border-radius: 12px;
+  box-shadow: none;
+  font-weight: 800;
+}
+
+.personal-settings-form .ant-btn-primary:hover {
+  background: #07967e !important;
+  border-color: #07967e !important;
+}
+
+@media (max-width: 560px) {
+  .personal-settings-drawer .ant-drawer-content-wrapper {
+    width: 100% !important;
+  }
+}

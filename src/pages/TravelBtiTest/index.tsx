@@ -14,49 +14,16 @@ import {
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
 import { TravelBtiPageShell } from "../../components/TravelBtiPageShell";
-import { authService, authTokenStorage } from "../../services";
+import { ApiError, authService, authTokenStorage, tripBtiService, TripBtiQuestion } from "../../services";
 import signpostIllustration from "../../../assets/travel-bti-test/travel-bti-test-side-signpost.png";
 import "./index.less";
 
 const choiceOptions = [
-  { label: "强烈偏左", value: -2, icon: "double-left" },
-  { label: "稍微偏左", value: -1, icon: "single-left" },
-  { label: "中立 / 都可以", value: 0, icon: "neutral" },
-  { label: "稍微偏右", value: 1, icon: "single-right" },
-  { label: "强烈偏右", value: 2, icon: "double-right" },
-];
-
-const mockQuestions = [
-  {
-    id: "pace",
-    dimension: "行程：紧凑 vs 松弛",
-    left: "我喜欢把每天行程安排得充实紧凑",
-    right: "我喜欢每天保留弹性和休息时间",
-  },
-  {
-    id: "planning",
-    dimension: "规划：提前安排 vs 随性探索",
-    left: "我喜欢出发前把路线和餐厅都安排好",
-    right: "我喜欢到当地后根据心情临时决定",
-  },
-  {
-    id: "interest",
-    dimension: "兴趣：人文城市 vs 自然风景",
-    left: "我更想逛街巷、展馆和当地市集",
-    right: "我更想看山海、湖泊和自然景观",
-  },
-  {
-    id: "social",
-    dimension: "互动：团队同行 vs 独处片刻",
-    left: "旅行中我喜欢大部分时间和大家一起行动",
-    right: "旅行中我希望留一点独处和自由活动时间",
-  },
-  {
-    id: "budget",
-    dimension: "花费：精打细算 vs 体验优先",
-    left: "我会优先控制预算，选择性价比路线",
-    right: "遇到值得的体验，我愿意多花一点预算",
-  },
+  { label: "强烈偏左", value: 0, icon: "double-left" },
+  { label: "稍微偏左", value: 0.25, icon: "single-left" },
+  { label: "中立 / 都可以", value: 0.5, icon: "neutral" },
+  { label: "稍微偏右", value: 0.75, icon: "single-right" },
+  { label: "强烈偏右", value: 1, icon: "double-right" },
 ];
 
 const featureItems = [
@@ -64,6 +31,24 @@ const featureItems = [
   { label: "促进团队更好协作", icon: UsersRound },
   { label: "生成团队旅行建议", icon: BarChart3 },
 ];
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "请求失败，请稍后重试";
+};
+
+const getDefaultScore = (question: TripBtiQuestion) => {
+  const scores = [...question.scoreValues].sort((left, right) => Math.abs(left - 0.5) - Math.abs(right - 0.5));
+
+  return scores[0] ?? 0.5;
+};
 
 function ChoiceIcon({ type }: { type: string }) {
   if (type === "neutral") {
@@ -86,16 +71,26 @@ export function TravelBtiTestPage() {
   const navigate = useNavigate();
   const transitionTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
+  const startedAtRef = useRef(Date.now());
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [questions, setQuestions] = useState<TripBtiQuestion[]>([]);
+  const [versionId, setVersionId] = useState<number>();
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isChoiceLocked, setIsChoiceLocked] = useState(false);
 
-  const currentQuestion = mockQuestions[currentQuestionIndex];
-  const currentAnswer = answers[currentQuestion.id];
+  const currentQuestion = questions[currentQuestionIndex];
+  const currentAnswer = currentQuestion ? answers[currentQuestion.questionNo] : undefined;
+  const hasCurrentAnswer = currentAnswer !== undefined;
+  const availableChoiceOptions = currentQuestion
+    ? choiceOptions.filter((option) => currentQuestion.scoreValues.includes(option.value))
+    : choiceOptions;
   const isFirstQuestion = currentQuestionIndex === 0;
-  const isLastQuestion = currentQuestionIndex === mockQuestions.length - 1;
-  const progressPercent = ((currentQuestionIndex + 1) / mockQuestions.length) * 100;
+  const isLastQuestion = currentQuestionIndex === questions.length - 1;
+  const progressPercent = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
 
   const handleLogout = async () => {
     try {
@@ -109,7 +104,45 @@ export function TravelBtiTestPage() {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadQuestions = async () => {
+      try {
+        setIsLoadingQuestions(true);
+        setErrorMessage("");
+
+        const response = await tripBtiService.getQuestions();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setQuestions(response.questions);
+        setVersionId(response.versionId);
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        startedAtRef.current = Date.now();
+        window.localStorage.removeItem("teamtrip-travel-bti-answers");
+        window.localStorage.removeItem("teamtrip-travel-bti-profile");
+
+        tripBtiService.saveProgress().catch(() => {
+          // Progress is only a soft hint for resume prompts.
+        });
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(getErrorMessage(error));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingQuestions(false);
+        }
+      }
+    };
+
+    loadQuestions();
+
     return () => {
+      isMounted = false;
       if (transitionTimerRef.current) {
         window.clearTimeout(transitionTimerRef.current);
       }
@@ -128,15 +161,49 @@ export function TravelBtiTestPage() {
     }
   };
 
+  const submitAnswers = async (nextAnswers: Record<number, number>) => {
+    if (!versionId || questions.length === 0) {
+      setErrorMessage("题目版本信息缺失，请刷新后重试");
+      setIsChoiceLocked(false);
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMessage("");
+
+      await tripBtiService.submitAnswers({
+        versionId,
+        durationSec: Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)),
+        answers: questions.map((question) => ({
+          questionNo: question.questionNo,
+          score: nextAnswers[question.questionNo] ?? 0.5,
+        })),
+      });
+
+      navigate("/travel-bti/result");
+    } catch (error) {
+      setIsSubmitting(false);
+      setIsChoiceLocked(false);
+      setIsTransitioning(false);
+      setErrorMessage(getErrorMessage(error));
+    }
+  };
+
   const handleSelectAnswer = (value: number) => {
-    if (isChoiceLocked) {
+    if (isChoiceLocked || !currentQuestion || isSubmitting) {
       return;
     }
 
     clearTransitionTimers();
+    const nextAnswers = {
+      ...answers,
+      [currentQuestion.questionNo]: value,
+    };
+
     setAnswers((current) => ({
       ...current,
-      [currentQuestion.id]: value,
+      [currentQuestion.questionNo]: value,
     }));
     setIsChoiceLocked(true);
 
@@ -145,14 +212,7 @@ export function TravelBtiTestPage() {
 
       finishTimerRef.current = window.setTimeout(() => {
         if (isLastQuestion) {
-          window.localStorage.setItem(
-            "teamtrip-travel-bti-answers",
-            JSON.stringify({
-              ...answers,
-              [currentQuestion.id]: value,
-            }),
-          );
-          navigate("/travel-bti/result");
+          submitAnswers(nextAnswers);
           return;
         }
 
@@ -166,7 +226,7 @@ export function TravelBtiTestPage() {
   };
 
   const goPreviousQuestion = () => {
-    if (!isFirstQuestion && !isChoiceLocked) {
+    if (!isFirstQuestion && !isChoiceLocked && !isSubmitting) {
       clearTransitionTimers();
       setIsChoiceLocked(true);
       setIsTransitioning(true);
@@ -181,11 +241,27 @@ export function TravelBtiTestPage() {
     }
   };
 
+  const retryLoadQuestions = () => {
+    setIsLoadingQuestions(true);
+    setErrorMessage("");
+    tripBtiService
+      .getQuestions()
+      .then((response) => {
+        setQuestions(response.questions);
+        setVersionId(response.versionId);
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        startedAtRef.current = Date.now();
+      })
+      .catch((error) => setErrorMessage(getErrorMessage(error)))
+      .finally(() => setIsLoadingQuestions(false));
+  };
+
   return (
     <TravelBtiPageShell
       header={
         <AppHeader
-          title="Travel-BTI 测试"
+          title="Trip-BTI 测试"
           onLogout={handleLogout}
           actions={[
             {
@@ -198,94 +274,121 @@ export function TravelBtiTestPage() {
         />
       }
     >
-      <section className="travel-bti-test-layout" aria-label="Travel-BTI 旅行偏好测试">
+      <section className="travel-bti-test-layout" aria-label="Trip-BTI 旅行偏好测试">
         <article className="travel-bti-quiz-card">
           <div className="quiz-title-row">
-            <h1>Travel-BTI 旅行偏好测试</h1>
+            <h1>Trip-BTI 旅行偏好测试</h1>
           </div>
 
-          <div className="quiz-progress-meta">
-            <p>
-              第 <strong>{currentQuestionIndex + 1}</strong> / {mockQuestions.length} 题
-            </p>
-            <span>
-              <Clock3 size={18} />
-              预计 3 分钟完成
-            </span>
-          </div>
-
-          <div className="quiz-progress-track" aria-hidden="true">
-            <span style={{ width: `${progressPercent}%` }} />
-          </div>
-
-          <div className={`quiz-content ${isTransitioning ? "is-switching" : ""}`}>
-            <div className="quiz-question-block">
-              <p className="quiz-question">
-                你更倾向于
-                <HelpCircle size={18} />
-              </p>
-
-              <div className="quiz-statement-row">
-                <div className="quiz-statement left">
-                  <MapPin size={52} fill="currentColor" strokeWidth={1.8} />
-                  <strong>{currentQuestion.left}</strong>
-                </div>
-
-                <div className="quiz-versus" aria-hidden="true">
-                  <span>VS</span>
-                </div>
-
-                <div className="quiz-statement right">
-                  <strong>{currentQuestion.right}</strong>
-                  <MapPin size={52} fill="currentColor" strokeWidth={1.8} />
-                </div>
-              </div>
-            </div>
-
-            <div className="quiz-choice-group" role="radiogroup" aria-label="旅行偏好选择">
-              {choiceOptions.map((option) => (
-                <button
-                  className={`quiz-choice ${currentAnswer === option.value ? "selected" : ""}`}
-                  key={option.label}
-                  type="button"
-                  role="radio"
-                  aria-checked={currentAnswer === option.value}
-                  disabled={isChoiceLocked}
-                  onClick={() => handleSelectAnswer(option.value)}
-                >
-                  <ChoiceIcon type={option.icon} />
-                  <span>{option.label}</span>
+          {isLoadingQuestions || !currentQuestion ? (
+            <div className="quiz-state-panel">
+              <Clock3 size={28} />
+              <strong>{errorMessage ? "题库加载失败" : "正在同步测试题库"}</strong>
+              <p>{errorMessage || "马上就好，正在获取当前发布版本的 Trip-BTI 题目。"}</p>
+              {errorMessage && (
+                <button className="quiz-primary-button" type="button" onClick={retryLoadQuestions}>
+                  重新加载
+                  <ChevronRight size={20} />
                 </button>
-              ))}
+              )}
             </div>
+          ) : (
+            <>
+              <div className="quiz-progress-meta">
+                <p>
+                  第 <strong>{currentQuestionIndex + 1}</strong> / {questions.length} 题
+                </p>
+                <span>
+                  <Clock3 size={18} />
+                  预计 3 分钟完成
+                </span>
+              </div>
 
-            <div className="quiz-dimension-line">
-              <MessageSquare size={18} />
-              <span>当前维度：</span>
-              <strong>{currentQuestion.dimension}</strong>
-            </div>
-          </div>
+              <div className="quiz-progress-track" aria-hidden="true">
+                <span style={{ width: `${progressPercent}%` }} />
+              </div>
 
-          <div className="quiz-card-divider" />
+              <div className={`quiz-content ${isTransitioning ? "is-switching" : ""}`}>
+                <div className="quiz-question-block">
+                  <p className="quiz-question">
+                    你更倾向于
+                    <HelpCircle size={18} />
+                  </p>
 
-          <div className="quiz-actions">
-            <button className="quiz-secondary-button" type="button" onClick={goPreviousQuestion} disabled={isFirstQuestion || isChoiceLocked}>
-              <ChevronLeft size={20} />
-              上一题
-            </button>
-            <button
-              className="quiz-primary-button"
-              type="button"
-              disabled={isChoiceLocked}
-              onClick={() => (currentAnswer === undefined ? handleSelectAnswer(0) : handleSelectAnswer(currentAnswer))}
-            >
-              {isLastQuestion ? "查看结果" : "跳过本题"}
-              <ChevronRight size={20} />
-            </button>
-          </div>
+                  <div className="quiz-statement-row">
+                    <div className="quiz-statement left">
+                      <MapPin size={52} fill="currentColor" strokeWidth={1.8} />
+                      <strong>{currentQuestion.leftText}</strong>
+                    </div>
+
+                    <div className="quiz-versus" aria-hidden="true">
+                      <span>VS</span>
+                    </div>
+
+                    <div className="quiz-statement right">
+                      <strong>{currentQuestion.rightText}</strong>
+                      <MapPin size={52} fill="currentColor" strokeWidth={1.8} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="quiz-choice-group" role="radiogroup" aria-label="旅行偏好选择">
+                  {availableChoiceOptions.map((option) => (
+                    <button
+                      className={`quiz-choice ${currentAnswer === option.value ? "selected" : ""}`}
+                      key={option.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={currentAnswer === option.value}
+                      disabled={isChoiceLocked || isSubmitting}
+                      onClick={() => handleSelectAnswer(option.value)}
+                    >
+                      <ChoiceIcon type={option.icon} />
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="quiz-dimension-line">
+                  <MessageSquare size={18} />
+                  <span>当前维度：</span>
+                  <strong>
+                    {currentQuestion.dimensionLabel}：{currentQuestion.leftLabel} vs {currentQuestion.rightLabel}
+                  </strong>
+                </div>
+
+                {errorMessage && <p className="quiz-error-message">{errorMessage}</p>}
+              </div>
+
+              <div className="quiz-card-divider" />
+
+              <div className="quiz-actions">
+                <button
+                  className="quiz-secondary-button"
+                  type="button"
+                  onClick={goPreviousQuestion}
+                  disabled={isFirstQuestion || isChoiceLocked || isSubmitting}
+                >
+                  <ChevronLeft size={20} />
+                  上一题
+                </button>
+                <button
+                  className="quiz-primary-button"
+                  type="button"
+                  disabled={isChoiceLocked || isSubmitting}
+                  onClick={() =>
+                    currentAnswer === undefined ? handleSelectAnswer(getDefaultScore(currentQuestion)) : handleSelectAnswer(currentAnswer)
+                  }
+                >
+                  {isSubmitting ? "正在生成结果" : isLastQuestion && hasCurrentAnswer ? "查看结果" : isLastQuestion ? "选择中立并完成" : "跳过本题"}
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </>
+          )}
         </article>
 
-        <aside className="travel-bti-side-card" aria-label="Travel-BTI 测试说明">
+        <aside className="travel-bti-side-card" aria-label="Trip-BTI 测试说明">
           <img className="side-card-illustration" src={signpostIllustration} alt="" />
           <h2>发现更合拍的旅行方式</h2>
           <p>完成测试后，你将获得专属旅行画像，并用于团队画像聚合</p>

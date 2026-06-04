@@ -145,7 +145,7 @@ export function FinalItineraryPage() {
               <article><CalendarDays size={26} /><strong>{itinerary.dayCount}</strong><span>天行程</span></article>
               <article><MapPin size={26} /><strong>{itinerary.placeCount}</strong><span>个地点</span></article>
               <article><Car size={26} /><strong>{itinerary.transportCount}</strong><span>次交通</span></article>
-              <article><ShieldCheck size={26} /><strong>已锁定</strong><span>行程已确认不可编辑</span></article>
+              <article><ShieldCheck size={26} /><strong>已锁定</strong><span>不可编辑</span></article>
             </div>
           </div>
         </section>
@@ -161,15 +161,6 @@ export function FinalItineraryPage() {
           </aside>
 
           <section className="final-day-panel">
-            <div className="final-mobile-tabs" aria-label="行程日期">
-              {itinerary.days.map((day, index) => (
-                <button className={index === activeDayIndex ? "active" : ""} key={day.id} type="button" onClick={() => setActiveDayIndex(index)}>
-                  <strong>{day.label}</strong>
-                  <span>{day.date}</span>
-                </button>
-              ))}
-            </div>
-
             <header className="final-day-heading">
               <h2>{activeDay.label}</h2>
               <span>{activeDay.date}（{activeDay.weekday}）</span>

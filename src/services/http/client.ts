@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { ApiError, toApiError } from "./errors";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -113,6 +113,8 @@ const redirectToLogin = () => {
 
 const isAuthRefreshRequest = (url?: string) => url?.includes("/api/v1/auth/refresh");
 const isPublicAuthRequest = (url?: string) => url?.includes("/api/v1/auth/login") || url?.includes("/api/v1/auth/register");
+const isAuthExpiredApiResponse = (response: unknown): response is ApiResponse<unknown> =>
+  isWrappedApiResponse(response) && Number(response.code) === 401;
 
 const persistLoginResponse = (loginResponse: LoginResponseLike) => {
   const token = loginResponse.accessToken || loginResponse.token;
@@ -162,8 +164,47 @@ const refreshAccessToken = async () => {
   return refreshRequestPromise;
 };
 
+const retryRequestAfterRefresh = async (originalConfig: AuthRetryConfig) => {
+  originalConfig._retry = true;
+
+  try {
+    await refreshAccessToken();
+    const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+
+    if (token) {
+      originalConfig.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return apiClient.request(originalConfig);
+  } catch (refreshError) {
+    const refreshStatus =
+      refreshError instanceof ApiError ? refreshError.status : (refreshError as AxiosError | undefined)?.response?.status;
+
+    if (refreshStatus === 401 || refreshStatus === 404) {
+      clearAuthSession();
+      redirectToLogin();
+    }
+
+    return Promise.reject(toApiError(refreshError));
+  }
+};
+
 apiClient.interceptors.response.use(
-  (response) => response,
+  async (response: AxiosResponse) => {
+    const originalConfig = response.config as AuthRetryConfig;
+
+    if (
+      isAuthExpiredApiResponse(response.data) &&
+      originalConfig &&
+      !originalConfig._retry &&
+      !isAuthRefreshRequest(originalConfig.url) &&
+      !isPublicAuthRequest(originalConfig.url)
+    ) {
+      return retryRequestAfterRefresh(originalConfig);
+    }
+
+    return response;
+  },
   async (error: AxiosError) => {
     const status = error.response?.status;
     const originalConfig = error.config as AuthRetryConfig | undefined;
@@ -175,28 +216,7 @@ apiClient.interceptors.response.use(
       !isAuthRefreshRequest(originalConfig.url) &&
       !isPublicAuthRequest(originalConfig.url)
     ) {
-      originalConfig._retry = true;
-
-      try {
-        await refreshAccessToken();
-        const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-
-        if (token) {
-          originalConfig.headers.Authorization = `Bearer ${token}`;
-        }
-
-        return apiClient.request(originalConfig);
-      } catch (refreshError) {
-        const refreshStatus =
-          refreshError instanceof ApiError ? refreshError.status : (refreshError as AxiosError | undefined)?.response?.status;
-
-        if (refreshStatus === 401 || refreshStatus === 404) {
-          clearAuthSession();
-          redirectToLogin();
-        }
-
-        return Promise.reject(toApiError(refreshError));
-      }
+      return retryRequestAfterRefresh(originalConfig);
     }
 
     return Promise.reject(toApiError(error));

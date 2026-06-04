@@ -31,6 +31,34 @@
   letter-spacing: 0;
 }
 
+.quiz-state-panel {
+  display: grid;
+  min-height: 438px;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+  color: #64748b;
+  text-align: center;
+}
+
+.quiz-state-panel svg {
+  color: var(--tt-primary);
+}
+
+.quiz-state-panel strong {
+  color: var(--tt-text);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.quiz-state-panel p {
+  max-width: 420px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
 .quiz-progress-meta {
   display: flex;
   align-items: center;
@@ -264,6 +292,18 @@
 
 .quiz-dimension-line strong {
   color: var(--tt-primary);
+}
+
+.quiz-error-message {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  color: #b42318;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+  background: #fef2f2;
+  border: 1px solid #fee4e2;
+  border-radius: 12px;
 }
 
 .quiz-card-divider {

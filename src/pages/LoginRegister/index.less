@@ -1,18 +1,21 @@
 .login-page {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(760px, 1fr) 632px;
+  display: flex;
+  flex-wrap: wrap;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 20% 16%, rgba(255, 255, 255, 0.96), transparent 28%),
     linear-gradient(115deg, var(--tt-bg-gradient-start) 0%, #f5fbff 48%, var(--tt-bg-gradient-end) 100%);
 }
 
+/* === Hero Panel (left) === */
 .hero-panel {
   position: relative;
+  flex: 1 1 56%;
+  min-width: min(100%, 360px);
   min-height: 100vh;
-  padding: 52px 0 46px 52px;
+  padding: clamp(20px, 4vw, 52px) clamp(20px, 4vw, 52px) clamp(20px, 3.5vw, 46px);
+  overflow: hidden;
 }
 
 .brand {
@@ -20,11 +23,17 @@
   z-index: 3;
   display: inline-flex;
   align-items: center;
-  gap: 16px;
+  gap: clamp(10px, 1.5vw, 16px);
+}
+
+.brand-mark {
+  width: clamp(40px, 4vw, 64px);
+  height: auto;
+  aspect-ratio: 72 / 86;
 }
 
 .brand-name {
-  font-size: 30px;
+  font-size: clamp(22px, 2.5vw, 30px);
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -32,14 +41,15 @@
 .hero-copy {
   position: relative;
   z-index: 3;
-  margin-top: 72px;
-  margin-left: 40px;
+  margin-top: clamp(20px, 4vh, 56px);
+  margin-left: clamp(0px, 3vw, 40px);
+  max-width: min(560px, 80%);
 }
 
 .hero-copy h1 {
   margin: 0;
   color: #14243b;
-  font-size: clamp(42px, 4.2vw, 62px);
+  font-size: clamp(30px, 4.2vw, 62px);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.34;
@@ -50,19 +60,20 @@
 }
 
 .hero-copy p {
-  margin: 20px 0 0;
+  margin: clamp(10px, 1.4vw, 18px) 0 0;
   color: #64748b;
-  font-size: 20px;
+  font-size: clamp(14px, 1.4vw, 20px);
   font-weight: 500;
   line-height: 1.5;
 }
 
 .reference-scene {
   position: absolute;
-  right: 0;
-  bottom: 172px;
-  left: 0;
-  height: clamp(600px, 66vh, 680px);
+  z-index: 1;
+  top: clamp(140px, 22vh, 260px);
+  right: clamp(0px, 3vw, 40px);
+  bottom: clamp(120px, 16vh, 180px);
+  left: clamp(0px, 3vw, 40px);
   overflow: hidden;
   pointer-events: none;
 }
@@ -88,28 +99,33 @@
 .feature-strip {
   position: absolute;
   z-index: 4;
-  left: 52px;
-  bottom: 162px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: min(790px, calc(100vw - 676px));
-  min-width: 660px;
-  padding: 24px 18px;
+  left: clamp(20px, 3vw, 40px);
+  bottom: clamp(86px, 11vh, 140px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 1.5vw, 18px);
+  width: clamp(280px, calc(100% - 80px), 720px);
+  padding: clamp(8px, 1.5vw, 18px);
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(226, 232, 240, 0.74);
-  border-radius: 18px;
+  border-radius: clamp(14px, 1.5vw, 18px);
   box-shadow: var(--tt-shadow-soft);
   backdrop-filter: blur(14px);
+}
+
+.feature-strip > .feature-item {
+  flex: 1 1 clamp(200px, 26%, 320px);
+  min-width: 0;
 }
 
 .copyright {
   position: absolute;
   z-index: 4;
-  bottom: 50px;
-  left: 52px;
+  bottom: clamp(20px, 3.5vh, 48px);
+  left: clamp(20px, 3vw, 40px);
   margin: 0;
   color: #718098;
-  font-size: 15px;
+  font-size: clamp(12px, 1.1vw, 15px);
 }
 
 .icp-link {
@@ -120,31 +136,60 @@
   color: var(--tt-primary);
 }
 
+/* === Auth Panel (right) === */
 .auth-panel {
-  position: relative;
-  z-index: 5;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  flex: 1 1 44%;
+  min-width: min(100%, 320px);
   min-height: 100vh;
-  padding: 40px 112px 72px 0;
+  padding: clamp(40px, 5vw, 80px) clamp(16px, 4vw, 64px) clamp(24px, 3vw, 48px);
 }
 
 .login-card {
-  width: 520px;
-  padding: 60px 60px 48px;
+  width: 100%;
+  max-width: 520px;
+  margin: auto 0;
+  padding: clamp(28px, 4vw, 60px) clamp(22px, 3.4vw, 60px) clamp(24px, 3.6vw, 48px);
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(226, 232, 240, 0.72);
-  border-radius: 26px;
+  border-radius: clamp(20px, 2vw, 26px);
   box-shadow: var(--tt-shadow-card);
 }
 
 .login-card .tabs + .ant-form-item {
-  margin-top: 32px;
+  margin-top: clamp(20px, 2.5vw, 32px);
 }
 
-.login-card .ant-form-item {
-  margin-bottom: 18px;
+.login-card .auth-field.ant-form-item,
+.login-card .auth-field.ant-form-item-with-help {
+  margin-bottom: clamp(14px, 1.8vw, 22px);
+}
+
+.login-card .auth-field.ant-form-item-with-help:has(.ant-form-item-explain-error:not(:empty)) {
+  margin-bottom: 0;
+}
+
+.login-card .auth-field .ant-form-item-explain {
+  min-height: 22px;
+}
+
+.login-card .auth-field .ant-form-item-explain:has(.ant-form-item-explain-error:empty),
+.login-card .auth-field .ant-form-item-explain-error:empty {
+  display: none;
+}
+
+.login-card .auth-agreement {
+  margin-bottom: clamp(8px, 1vw, 12px);
+}
+
+.login-card .auth-agreement .ant-form-item-explain {
+  min-height: 20px;
+}
+
+.login-card .auth-submit {
+  margin-bottom: 0;
 }
 
 .login-card .ant-input-prefix,
@@ -167,20 +212,20 @@
 .card-heading h2 {
   margin: 0;
   color: var(--tt-text);
-  font-size: 32px;
+  font-size: clamp(24px, 2.4vw, 32px);
   font-weight: 800;
 }
 
 .card-heading p {
-  margin: 17px 0 0;
+  margin: clamp(10px, 1.4vw, 17px) 0 0;
   color: var(--tt-text-secondary);
-  font-size: 16px;
+  font-size: clamp(14px, 1.1vw, 16px);
 }
 
 .tabs {
   display: grid;
   grid-template-columns: 1fr;
-  margin-top: 44px;
+  margin-top: clamp(28px, 3.5vw, 44px);
   border-bottom: 1px solid var(--tt-border);
 }
 
@@ -188,7 +233,7 @@
   position: relative;
   height: 42px;
   color: var(--tt-text-secondary);
-  font-size: 16px;
+  font-size: clamp(14px, 1.1vw, 16px);
   font-weight: 600;
   background: transparent;
   border: 0;
@@ -221,7 +266,7 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  margin: 28px 0 26px;
+  margin: clamp(18px, 2.2vw, 28px) 0;
   color: var(--tt-text-muted);
   font-size: 14px;
 }
@@ -235,14 +280,11 @@
 }
 
 .page-footer {
-  position: absolute;
-  right: 158px;
-  bottom: 48px;
   display: inline-flex;
   align-items: center;
-  gap: 26px;
+  gap: clamp(16px, 2vw, 26px);
   color: #718098;
-  font-size: 15px;
+  font-size: clamp(13px, 1.1vw, 15px);
 }
 
 .page-footer a {
@@ -261,151 +303,4 @@
 
 .chevron {
   margin-left: 3px;
-}
-
-@media (max-width: 1400px) and (min-width: 1181px) {
-  .login-page {
-    grid-template-columns: minmax(640px, 1fr) 552px;
-  }
-
-  .auth-panel {
-    padding-right: 32px;
-  }
-
-  .login-card {
-    width: 480px;
-    padding: 48px 44px 40px;
-  }
-
-  .feature-strip {
-    width: min(660px, calc(100% - 104px));
-    min-width: 0;
-  }
-
-  .feature-item {
-    padding: 0 12px;
-  }
-}
-
-@media (max-width: 1180px) {
-  .login-page {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-panel {
-    min-height: 520px;
-    padding-right: 52px;
-  }
-
-  .reference-scene {
-    height: 420px;
-  }
-
-  .feature-strip {
-    width: calc(100% - 104px);
-    min-width: 0;
-  }
-
-  .auth-panel {
-    min-height: auto;
-    padding: 0 32px 92px;
-    align-items: center;
-  }
-
-  .page-footer {
-    right: auto;
-    bottom: 34px;
-  }
-}
-
-@media (max-width: 760px) {
-  .login-page {
-    display: block;
-    overflow: visible;
-  }
-
-  .hero-panel {
-    min-height: auto;
-    padding: 28px 20px 24px;
-  }
-
-  .brand-name {
-    font-size: 25px;
-  }
-
-  .hero-copy {
-    margin: 42px 0 0;
-  }
-
-  .hero-copy h1 {
-    font-size: 38px;
-  }
-
-  .hero-copy p {
-    max-width: 330px;
-    font-size: 15px;
-  }
-
-  .reference-scene {
-    position: relative;
-    height: 230px;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    margin: 22px -20px 0;
-  }
-
-  .reference-scene img {
-    object-position: center bottom;
-  }
-
-  .feature-strip {
-    position: relative;
-    left: auto;
-    bottom: auto;
-    grid-template-columns: 1fr;
-    width: 100%;
-    margin-top: 10px;
-    padding: 8px 18px;
-  }
-
-  .feature-item {
-    padding: 16px 0;
-    border-right: 0;
-    border-bottom: 1px solid var(--tt-border);
-  }
-
-  .feature-item:last-child {
-    border-bottom: 0;
-  }
-
-  .copyright {
-    position: static;
-    margin-top: 24px;
-    font-size: 13px;
-  }
-
-  .auth-panel {
-    padding: 0 16px 86px;
-  }
-
-  .login-card {
-    width: 100%;
-    padding: 34px 22px 28px;
-    border-radius: 22px;
-  }
-
-  .card-heading h2 {
-    font-size: 28px;
-  }
-
-  .tabs {
-    margin-top: 32px;
-  }
-
-  .page-footer {
-    bottom: 30px;
-    gap: 18px;
-    font-size: 14px;
-  }
 }

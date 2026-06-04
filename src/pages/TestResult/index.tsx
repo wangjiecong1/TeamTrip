@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Camera,
@@ -13,42 +13,129 @@ import {
   RefreshCw,
   Route,
   ShieldCheck,
-  Users,
   UsersRound,
   Wallet,
   Zap,
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
 import { TravelBtiPageShell } from "../../components/TravelBtiPageShell";
-import { authService, authTokenStorage } from "../../services";
+import { ApiError, ArchetypeCandidate, authService, authTokenStorage, tripBtiService, TripBtiProfile } from "../../services";
 import personaAvatar from "../../../assets/travel-bti-result/travel-bti-result-persona-avatar.png";
 import personaBanner from "../../../assets/travel-bti-result/travel-bti-result-persona-banner.png";
+import { TestResultSkeleton } from "./Skeleton";
 import "./index.less";
 
 const dimensions = [
-  { label: "行程节奏", score: 85, icon: Route, tone: "blue" },
-  { label: "自然人文", score: 80, icon: Mountain, tone: "green" },
-  { label: "随意规划", score: 65, icon: Map, tone: "blue" },
-  { label: "体力强度", score: 40, icon: Zap, tone: "orange" },
-  { label: "环境舒适", score: 75, icon: Home, tone: "green" },
-  { label: "吃喝偏好", score: 80, icon: Heart, tone: "rose" },
-  { label: "拍照风格", score: 70, icon: Camera, tone: "blue" },
-  { label: "社交倾向", score: 50, icon: UsersRound, tone: "green" },
-  { label: "花费倾向", score: 55, icon: Wallet, tone: "yellow" },
-  { label: "探索程度", score: 75, icon: Compass, tone: "blue" },
-];
+  { key: "schedule", label: "行程节奏", icon: Route, tone: "blue" },
+  { key: "interest", label: "自然人文", icon: Mountain, tone: "green" },
+  { key: "planning", label: "计划程度", icon: Map, tone: "blue" },
+  { key: "physical", label: "体力强度", icon: Zap, tone: "orange" },
+  { key: "environment", label: "环境偏好", icon: Home, tone: "green" },
+  { key: "food", label: "吃喝偏好", icon: Heart, tone: "rose" },
+  { key: "photo", label: "拍照风格", icon: Camera, tone: "blue" },
+  { key: "social", label: "社交倾向", icon: UsersRound, tone: "green" },
+  { key: "budget", label: "花费倾向", icon: Wallet, tone: "yellow" },
+  { key: "exploration", label: "探索程度", icon: Compass, tone: "blue" },
+] as const;
 
-const keywords = ["慢游", "人文", "规划", "在地体验", "细节控"];
+const fallbackKeywords = ["轻旅行", "协作", "偏好画像"];
+const fallbackTips = ["把这份画像同步到团队工作台", "和队友对齐行程节奏、预算与探索偏好", "规划时优先处理差异较大的维度"];
 
-const travelTips = [
-  "安排半天到一天的深度城市漫游",
-  "预留自由探索时间，发现隐藏的宝藏小店",
-  "选择具有人文气息的住宿与节奏路线",
-  "行前做好功课，规划动线与体验清单",
-];
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "请求失败，请稍后重试";
+};
+
+const getDimensionScore = (profile: TripBtiProfile | null, key: (typeof dimensions)[number]["key"]) => {
+  const value = profile?.[key];
+
+  if (typeof value !== "number") {
+    return 0;
+  }
+
+  return Math.round(Math.min(1, Math.max(0, value)) * 100);
+};
+
+const getPrimaryCandidate = (profile: TripBtiProfile | null): ArchetypeCandidate | null => profile?.archetypeCandidates?.[0] ?? null;
+
+const getKeywords = (profile: TripBtiProfile | null) => {
+  const candidate = getPrimaryCandidate(profile);
+
+  if (candidate?.traits?.length) {
+    return candidate.traits;
+  }
+
+  if (profile?.typeCode) {
+    return profile.typeCode.split("·").filter(Boolean).slice(0, 5);
+  }
+
+  return fallbackKeywords;
+};
+
+const getTips = (profile: TripBtiProfile | null) => {
+  const candidate = getPrimaryCandidate(profile);
+
+  return candidate?.tips?.length ? candidate.tips : fallbackTips;
+};
 
 export function TestResultPage() {
   const navigate = useNavigate();
+  const [profile, setProfile] = useState<TripBtiProfile | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isRetesting, setIsRetesting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const primaryCandidate = getPrimaryCandidate(profile);
+  const personaName = profile?.archetypeName || primaryCandidate?.name || "旅行画像生成中";
+  const personaTagline = profile?.archetypeTagline || primaryCandidate?.tagline || profile?.typeCode || "等待生成你的旅行画像";
+  const personaDescription =
+    primaryCandidate?.description ||
+    profile?.prompt ||
+    "基于你的回答生成的旅行人格画像，将帮助团队更懂彼此，一起规划更合拍的旅行。";
+  const keywords = getKeywords(profile);
+  const travelTips = getTips(profile);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        setIsLoadingProfile(true);
+        setErrorMessage("");
+        window.localStorage.removeItem("teamtrip-travel-bti-answers");
+        window.localStorage.removeItem("teamtrip-travel-bti-profile");
+
+        const response = await tripBtiService.getMyProfile();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setProfile(response);
+      } catch (error) {
+        if (isMounted && !profile) {
+          setErrorMessage(getErrorMessage(error));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -61,49 +148,46 @@ export function TestResultPage() {
     }
   };
 
+  const handleRetest = async () => {
+    try {
+      setIsRetesting(true);
+      await tripBtiService.retest(profile?.lastQuestionnaireVersionId);
+      navigate("/travel-bti");
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+      setIsRetesting(false);
+    }
+  };
+
   return (
     <TravelBtiPageShell
       compact
       header={
-        <AppHeader
-          title="Travel-BTI 结果"
-          actions={[
-            {
-              label: "重新测试",
-              icon: RefreshCw,
-              onClick: () => navigate("/travel-bti"),
-              variant: "outline",
-            },
-            {
-              label: "返回我的团队",
-              icon: Users,
-              onClick: () => navigate("/teams"),
-              variant: "primary",
-            },
-          ]}
-          onLogout={handleLogout}
-        />
+        <AppHeader title="Trip-BTI 结果" actions={[]} onLogout={handleLogout} />
       }
     >
-      <section className="travel-bti-result-card" aria-label="Travel-BTI 测试结果">
+      <section className="travel-bti-result-card" aria-busy={isLoadingProfile} aria-label="Trip-BTI 测试结果">
+        {isLoadingProfile ? (
+          <TestResultSkeleton />
+        ) : (
+        <>
         <div className="result-main-column">
           <div className="result-status">
             <CheckCircle2 size={30} fill="currentColor" />
-            <span>测试完成</span>
+            <span>{profile?.tripProfileStatusText || "测试完成"}</span>
           </div>
 
           <h1>你的旅行人格结果</h1>
           <p className="result-lead">基于你的回答生成的旅行人格画像，将帮助团队更懂彼此，一起规划更合拍的旅行。</p>
+          {errorMessage && <p className="result-error-message">{errorMessage}</p>}
 
           <section className="persona-panel" aria-label="旅行人格">
             <div className="persona-summary">
               <img src={personaAvatar} alt="" />
               <div>
-                <h2>街巷收藏家</h2>
-                <p className="persona-tags">慢游 · 人文 · 规划</p>
-                <p className="persona-description">
-                  你喜欢在城市的街巷间漫步，发现独特的在地故事与人文景致。行前乐于规划动线与体验，行程中保持从容节奏，享受细节与氛围带来的愉悦与共鸣。
-                </p>
+                <h2>{personaName}</h2>
+                <p className="persona-tags">{personaTagline}</p>
+                <p className="persona-description">{personaDescription}</p>
               </div>
             </div>
 
@@ -118,18 +202,22 @@ export function TestResultPage() {
             </div>
 
             <div className="dimension-grid">
-              {dimensions.map(({ label, score, icon: Icon, tone }) => (
-                <div className="dimension-row" key={label}>
-                  <span className={`dimension-icon ${tone}`}>
-                    <Icon size={18} />
-                  </span>
-                  <strong>{label}</strong>
-                  <div className="dimension-track">
-                    <span style={{ width: `${score}%` }} />
+              {dimensions.map(({ key, label, icon: Icon, tone }) => {
+                const score = getDimensionScore(profile, key);
+
+                return (
+                  <div className="dimension-row" key={label}>
+                    <span className={`dimension-icon ${tone}`}>
+                      <Icon size={18} />
+                    </span>
+                    <strong>{label}</strong>
+                    <div className="dimension-track">
+                      <span style={{ width: `${score}%` }} />
+                    </div>
+                    <em>{score}</em>
                   </div>
-                  <em>{score}</em>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 
@@ -139,9 +227,9 @@ export function TestResultPage() {
               结果将应用于团队画像聚合，帮助大家更合拍地规划旅行。
             </p>
             <div className="result-actions">
-              <button className="result-secondary-button" type="button" onClick={() => navigate("/travel-bti")}>
+              <button className="result-secondary-button" type="button" onClick={handleRetest} disabled={isRetesting}>
                 <RefreshCw size={20} />
-                重新测试
+                {isRetesting ? "正在重测" : "重新测试"}
               </button>
               <button className="result-primary-button" type="button" onClick={() => navigate("/teams")}>
                 返回我的团队
@@ -178,17 +266,9 @@ export function TestResultPage() {
             </ul>
           </section>
 
-          <section className="result-side-card team-role-card">
-            <div className="team-role-icon">
-              <UsersRound size={36} />
-            </div>
-            <div>
-              <h2>在团队中的角色</h2>
-              <h3>城市策展人</h3>
-              <p>擅长挖掘目的地点，为团队带来有故事、有温度的旅行体验。</p>
-            </div>
-          </section>
         </aside>
+        </>
+        )}
       </section>
     </TravelBtiPageShell>
   );

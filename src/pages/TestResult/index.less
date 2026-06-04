@@ -1,8 +1,8 @@
 .travel-bti-result-card {
   display: grid;
-  grid-template-columns: minmax(0, 826px) minmax(320px, 380px);
-  gap: 34px;
-  width: min(1336px, 100%);
+  grid-template-columns: minmax(0, 820px) minmax(420px, 500px);
+  gap: 38px;
+  width: min(1460px, 100%);
   min-height: 0;
   margin: 0 auto;
   padding: 30px 58px 22px;
@@ -47,6 +47,18 @@
   font-size: 17px;
   font-weight: 700;
   line-height: 1.75;
+}
+
+.result-error-message {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  color: #b42318;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+  background: #fef2f2;
+  border: 1px solid #fee4e2;
+  border-radius: 12px;
 }
 
 .persona-panel {
@@ -280,10 +292,16 @@
   box-shadow: 0 16px 28px rgba(0, 168, 137, 0.2);
 }
 
+.result-secondary-button:disabled,
+.result-primary-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .result-side-column {
   display: grid;
-  align-content: center;
-  gap: 11px;
+  align-content: start;
+  gap: 14px;
 }
 
 .result-side-card {
@@ -304,7 +322,21 @@
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 10px;
+  border-radius: 14px;
+}
+
+.persona-image-card {
+  padding: 20px;
+}
+
+.persona-image-card h2 {
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+.persona-image-card img {
+  min-height: 280px;
+  object-fit: cover;
 }
 
 .keyword-list {
@@ -351,42 +383,6 @@
   border-radius: 999px;
 }
 
-.team-role-card {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 16px;
-  align-items: center;
-}
-
-.team-role-icon {
-  display: grid;
-  width: 58px;
-  height: 58px;
-  place-items: center;
-  color: var(--tt-primary);
-  background: var(--tt-primary-soft);
-  border-radius: 999px;
-}
-
-.team-role-card h2 {
-  margin-bottom: 6px;
-}
-
-.team-role-card h3 {
-  margin: 0;
-  color: var(--tt-text);
-  font-size: 24px;
-  font-weight: 800;
-}
-
-.team-role-card p {
-  margin: 5px 0 0;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.45;
-}
-
 @media (max-width: 1240px) {
   .travel-bti-result-card {
     grid-template-columns: 1fr;
@@ -396,6 +392,10 @@
   .result-side-column {
     align-content: stretch;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .persona-image-card {
+    grid-column: 1 / -1;
   }
 }
 

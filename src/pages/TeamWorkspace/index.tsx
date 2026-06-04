@@ -32,7 +32,7 @@ const navItems = [
 ];
 
 const readinessItems = [
-  { title: "Travel-BTI 测试", desc: "已完成 · 供参考", status: "已完成", icon: CheckCircle2 },
+  { title: "Trip-BTI 测试", desc: "已完成 · 供参考", status: "已完成", icon: CheckCircle2 },
   { title: "可出行时间", desc: "已填写 2 段时间", status: "已填写", icon: CalendarDays },
   { title: "我的备注", desc: "希望节奏轻松一点，晚上不要安排太满~", icon: MessageSquareText },
 ];
@@ -183,7 +183,7 @@ export function TeamWorkspacePage() {
                 </strong>
               </div>
               <div>
-                <span>已完成 Travel-BTI</span>
+                <span>已完成 Trip-BTI</span>
                 <strong>7 / 8 人</strong>
               </div>
               <div>

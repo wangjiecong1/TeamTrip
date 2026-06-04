@@ -1,6 +1,6 @@
 import { apiClient } from "../http/client";
 import { ApiError } from "../http/errors";
-import { ApiResponse, LoginRequest, LoginResponse, RegisterRequest, UserResponse } from "./types";
+import { ApiResponse, ChangePasswordRequest, LoginRequest, LoginResponse, RegisterRequest, UpdateProfileRequest, UserResponse } from "./types";
 import { normalizeRegisterRequest } from "./validation";
 
 const isWrappedApiResponse = <T>(response: T | ApiResponse<T>): response is ApiResponse<T> =>
@@ -11,7 +11,7 @@ const unwrapApiResponse = <T>(response: T | ApiResponse<T>): T => {
     const isSuccess = response.code === undefined || response.code === 200;
 
     if (!isSuccess) {
-      throw new ApiError(response.message || "请求失败，请稍后重试", { code: String(response.code) });
+      throw new ApiError(response.message || "请求失败，请稍后重试", { status: response.code, code: String(response.code) });
     }
 
     if (response.data !== undefined && response.data !== null) {
@@ -42,5 +42,23 @@ export const authService = {
 
   logout: async (): Promise<void> => {
     await apiClient.post("/api/v1/auth/logout");
+  },
+
+  getUserInfo: async (): Promise<UserResponse> => {
+    const response = await apiClient.get<UserResponse | ApiResponse<UserResponse>>("/api/v1/auth/userinfo");
+
+    return unwrapApiResponse(response.data);
+  },
+
+  updateProfile: async (request: UpdateProfileRequest): Promise<UserResponse> => {
+    const response = await apiClient.put<UserResponse | ApiResponse<UserResponse>>("/api/v1/users/me/profile", request);
+
+    return unwrapApiResponse(response.data);
+  },
+
+  changePassword: async (request: ChangePasswordRequest): Promise<void> => {
+    const response = await apiClient.put<void | ApiResponse<void>>("/api/v1/users/me/password", request);
+
+    unwrapApiResponse(response.data);
   },
 };

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Avatar, Button, Card, Form, Input, message, Modal, Skeleton, Tag } from "antd";
 import {
   CalendarDays,
-  Camera,
   CheckCircle2,
   ChevronRight,
   ClipboardCopy,
@@ -14,11 +14,9 @@ import {
   MoreHorizontal,
   UserPlus,
   Users,
-  X,
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
-import { Loading } from "../../components/Loading";
-import { authService, authTokenStorage } from "../../services";
+import { ApiError, authService, authTokenStorage, MyTeamsOverviewResponse, teamsService, TeamCardResponse } from "../../services";
 import avatar from "../../../assets/common/app-header-user-avatar.svg";
 import lakeCover from "../../../assets/my-teams/my-teams-card-cover-lake.svg";
 import cityCover from "../../../assets/my-teams/my-teams-card-cover-city.svg";
@@ -39,233 +37,231 @@ type TeamCard = {
   inviteCode: string;
 };
 
+type ActionModalValues = {
+  name?: string;
+  destination?: string;
+  inviteCode?: string;
+};
+
 type ActionModalProps = {
   type: ModalType;
   onClose: () => void;
-  onDone: (payload: { name: string; destination?: string; inviteCode?: string; cover?: string }) => void;
+  onDone: (payload: { name: string; destination?: string; inviteCode?: string }) => Promise<void>;
+  isSubmitting: boolean;
 };
 
-const mockTeamCards: TeamCard[] = [
-  {
-    id: "hangzhou",
-    name: "国庆杭州旅行",
-    destination: "杭州",
-    members: 8,
-    role: "Owner",
-    status: "行程规划中",
-    statusTone: "blue",
-    cover: lakeCover,
-    inviteCode: "TT-HZ-1024",
-  },
-  {
-    id: "shanghai-citywalk",
-    name: "上海 Citywalk 小队",
-    destination: "上海",
-    members: 5,
-    role: "Member",
-    status: "待填写日期",
-    statusTone: "orange",
-    cover: cityCover,
-    inviteCode: "TT-SH-2026",
-  },
-  {
-    id: "osaka",
-    name: "大阪赏樱计划",
-    destination: "大阪",
-    members: 6,
-    role: "Member",
-    status: "已锁定行程",
-    statusTone: "green",
-    cover: lakeCover,
-    inviteCode: "TT-OSA-0412",
-  },
-  {
-    id: "kamakura",
-    name: "镰仓・江之电一日游",
-    destination: "日本・镰仓",
-    members: 4,
-    role: "Member",
-    status: "行程讨论中",
-    statusTone: "slate",
-    cover: trainCover,
-    inviteCode: "TT-KMK-0701",
-  },
-];
+const coverFallbacks = [lakeCover, cityCover, trainCover];
 
-function ActionModal({ type, onClose, onDone }: ActionModalProps) {
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "请求失败，请稍后重试";
+};
+
+const getStatusTone = (team: TeamCardResponse): TeamCard["statusTone"] => {
+  if (team.locked || team.teamStatus === 1) {
+    return "green";
+  }
+
+  const statusText = team.statusTag || team.teamStatusText || "";
+
+  if (statusText.includes("待")) {
+    return "orange";
+  }
+
+  if (statusText.includes("规划") || statusText.includes("准备")) {
+    return "blue";
+  }
+
+  return "slate";
+};
+
+const mapTeamCard = (team: TeamCardResponse, index: number): TeamCard => ({
+  id: String(team.teamId),
+  name: team.name || "未命名旅行小队",
+  destination: team.destination || "待确认地点",
+  members: team.memberCount ?? 1,
+  role: team.role === "owner" ? "Owner" : "Member",
+  status: team.statusTag || team.teamStatusText || (team.locked ? "已锁定行程" : "行程规划中"),
+  statusTone: getStatusTone(team),
+  cover: team.avatar || coverFallbacks[index % coverFallbacks.length],
+  inviteCode: team.inviteCode || String(team.teamId),
+});
+
+function ActionModal({ type, onClose, onDone, isSubmitting }: ActionModalProps) {
   const isCreate = type === "create";
-  const [teamName, setTeamName] = useState("");
-  const [destination, setDestination] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
-  const [coverPreview, setCoverPreview] = useState("");
-  const [error, setError] = useState("");
+  const [form] = Form.useForm<ActionModalValues>();
 
-  const handleCoverChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setCoverPreview("");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      setError("请上传图片文件");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCoverPreview(typeof reader.result === "string" ? reader.result : "");
-      setError("");
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const submitModal = () => {
-    const normalizedName = teamName.trim();
-    const normalizedDestination = destination.trim();
-    const normalizedInviteCode = inviteCode.trim();
-
-    if (isCreate && normalizedName.length < 2) {
-      setError("请输入至少 2 个字符的团队名称");
-      return;
-    }
-
-    if (isCreate && normalizedDestination.length < 1) {
-      setError("请输入目的地或大致方向");
-      return;
-    }
-
-    if (!isCreate && normalizedInviteCode.length < 4) {
-      setError("请输入有效的邀请码或邀请链接");
-      return;
-    }
-
-    onDone({
-      name: normalizedName,
-      destination: normalizedDestination,
-      inviteCode: normalizedInviteCode,
-      cover: coverPreview,
+  const submitModal = async (values: ActionModalValues) => {
+    await onDone({
+      name: values.name?.trim() || "",
+      destination: values.destination?.trim(),
+      inviteCode: values.inviteCode?.trim(),
     });
   };
 
   return (
-    <div className="my-teams-modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="my-teams-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={isCreate ? "创建团队" : "加入团队"}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <button className="my-teams-modal__close" type="button" aria-label="关闭" onClick={onClose}>
-          <X size={20} />
-        </button>
+    <Modal
+      centered
+      className="my-teams-modal"
+      confirmLoading={isSubmitting}
+      destroyOnHidden
+      okText={isSubmitting ? "处理中" : isCreate ? "创建团队" : "加入团队"}
+      open
+      title={null}
+      width={460}
+      onCancel={onClose}
+      onOk={() => form.submit()}
+    >
+      <div className="my-teams-modal__content">
         <div className="my-teams-modal__icon">{isCreate ? <Users size={26} /> : <UserPlus size={26} />}</div>
         <h2>{isCreate ? "创建团队" : "加入团队"}</h2>
         <p>{isCreate ? "给下一段旅程起个名字，稍后邀请伙伴一起完善计划。" : "输入邀请码或邀请链接，加入伙伴正在规划的旅程。"}</p>
 
-        <label>
-          <span>{isCreate ? "团队名称" : "邀请码 / 邀请链接"}</span>
-          <input
-            value={isCreate ? teamName : inviteCode}
-            placeholder={isCreate ? "例如：端午青岛轻旅行" : "例如：TT-HZ-1024"}
-            onChange={(event) => {
-              if (isCreate) {
-                setTeamName(event.target.value);
-              } else {
-                setInviteCode(event.target.value);
-              }
-              setError("");
-            }}
-          />
-        </label>
-        {isCreate && (
-          <>
-            <label>
-              <span>地点</span>
-              <input
-                value={destination}
-                placeholder="可以模糊填写，例如：江南、海边城市、日本关西"
-                onChange={(event) => {
-                  setDestination(event.target.value);
-                  setError("");
-                }}
-              />
-            </label>
+        <Form form={form} layout="vertical" requiredMark={false} onFinish={submitModal}>
+          {isCreate ? (
+            <>
+              <Form.Item label="团队名称" name="name" rules={[{ required: true, min: 2, message: "请输入至少 2 个字符的团队名称" }]}>
+                <Input placeholder="例如：端午青岛轻旅行" />
+              </Form.Item>
 
-            <label>
-              <span>团队图片</span>
-              <input accept="image/*" type="file" onChange={handleCoverChange} />
-            </label>
+              <Form.Item label="地点" name="destination" rules={[{ required: true, message: "请输入目的地或大致方向" }]}>
+                <Input placeholder="可以模糊填写，例如：江南、海边城市、日本关西" />
+              </Form.Item>
+            </>
+          ) : (
+            <Form.Item
+              label="邀请码 / 邀请链接"
+              name="inviteCode"
+              rules={[{ required: true, min: 4, message: "请输入有效的邀请码或邀请链接" }]}
+            >
+              <Input placeholder="例如：CV7A3Y" />
+            </Form.Item>
+          )}
+        </Form>
+      </div>
+    </Modal>
+  );
+}
 
-            {coverPreview && (
-              <div className="my-teams-modal__cover-preview" aria-label="团队图片预览">
-                <img src={coverPreview} alt="" />
+function MyTeamsSkeleton() {
+  return (
+    <>
+      <section className="my-teams-overview" aria-label="团队页加载中">
+        <Card className="welcome-card my-teams-skeleton-card" variant="outlined">
+          <div className="welcome-card__avatar">
+            <Skeleton.Avatar active size={156} />
+          </div>
+
+          <div className="welcome-card__body my-teams-skeleton-card__body">
+            <Skeleton active title={{ width: "68%" }} paragraph={{ rows: 1, width: ["52%"] }} />
+            <Skeleton.Input active className="my-teams-skeleton-card__test" />
+            <div className="my-teams-skeleton-card__tags">
+              <Skeleton.Button active shape="round" />
+              <Skeleton.Button active shape="round" />
+              <Skeleton.Button active shape="round" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="status-card my-teams-skeleton-card" variant="outlined">
+          <Skeleton active title={{ width: 180 }} paragraph={false} />
+          <div className="my-teams-skeleton-card__stats">
+            {[0, 1, 2].map((item) => (
+              <div className="my-teams-skeleton-stat" key={item}>
+                <Skeleton.Avatar active shape="square" size={46} />
+                <Skeleton.Input active size="small" />
+                <Skeleton.Button active shape="round" size="small" />
               </div>
-            )}
-          </>
-        )}
-
-        {error && (
-          <p className="my-teams-modal__error" role="alert">
-            {error}
-          </p>
-        )}
-
-        <div className="my-teams-modal__actions">
-          <button className="my-teams-secondary-button" type="button" onClick={onClose}>
-            取消
-          </button>
-          <button className="my-teams-primary-button" type="button" onClick={submitModal}>
-            {isCreate ? "创建团队" : "加入团队"}
-          </button>
-        </div>
+            ))}
+          </div>
+          <Skeleton.Input active className="my-teams-skeleton-card__hint" />
+        </Card>
       </section>
-    </div>
+
+      <Card className="teams-panel my-teams-skeleton-card" variant="outlined" aria-label="我的团队加载中">
+        <header className="teams-panel__header">
+          <div>
+            <Skeleton active title={{ width: 150 }} paragraph={{ rows: 1, width: [280] }} />
+          </div>
+        </header>
+
+        <div className="teams-panel__grid">
+          {[0, 1].map((item) => (
+            <Card className="team-card-skeleton my-teams-skeleton-card" key={item} variant="outlined">
+              <Skeleton.Input active className="my-teams-skeleton-card__cover" />
+              <div className="my-teams-skeleton-card__team">
+                <Skeleton active title={{ width: "45%" }} paragraph={{ rows: 2, width: ["38%", "30%"] }} />
+                <div className="team-card-skeleton__actions">
+                  <Skeleton.Button active block />
+                  <Skeleton.Button active block />
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </Card>
+    </>
   );
 }
 
 export function MyTeamsPage() {
   const navigate = useNavigate();
-  const toastTimerRef = useRef<number | null>(null);
-  const loadingTimerRef = useRef<number | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
   const [modalType, setModalType] = useState<ModalType | null>(null);
-  const [teamCards, setTeamCards] = useState<TeamCard[]>(mockTeamCards);
+  const [overview, setOverview] = useState<MyTeamsOverviewResponse | null>(null);
+  const [teamCards, setTeamCards] = useState<TeamCard[]>([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
-  const [toast, setToast] = useState("");
+  const [isModalSubmitting, setIsModalSubmitting] = useState(false);
+  const [overviewError, setOverviewError] = useState("");
   const hasTeams = teamCards.length > 0;
-
-  const planningCount = teamCards.filter((team) => team.status === "行程规划中" || team.status === "行程讨论中").length;
-  const pendingDateCount = teamCards.filter((team) => team.status === "待填写日期").length;
+  const user = overview?.user;
+  const stats = overview?.stats;
+  const planningCount = stats?.planningCount ?? 0;
+  const pendingDateCount = stats?.pendingAvailability ?? 0;
+  const totalJoined = stats?.totalJoined ?? teamCards.length;
+  const nickname = user?.nickname || "旅行者";
+  const tripProfileText = user?.tripProfileStatusText || (user?.tripProfileCompleted ? "已完成测试" : "待完成测试");
+  const archetypeName = user?.archetype?.name;
+  const styleTags = user?.styleTags?.length ? user.styleTags : user?.tripProfileCompleted ? ["旅行画像"] : ["完成测试后生成"];
 
   useEffect(() => {
-    loadingTimerRef.current = window.setTimeout(() => {
-      setIsPageLoading(false);
-    }, 1400);
-
-    return () => {
-      if (loadingTimerRef.current) {
-        window.clearTimeout(loadingTimerRef.current);
-      }
-    };
+    loadOverview();
   }, []);
 
-  const showToast = (message: string) => {
-    setToast(message);
-    if (toastTimerRef.current) {
-      window.clearTimeout(toastTimerRef.current);
+  const loadOverview = async () => {
+    try {
+      setIsPageLoading(true);
+      setOverviewError("");
+
+      const response = await teamsService.getOverview();
+
+      setOverview(response);
+      setTeamCards(response.teams.map(mapTeamCard));
+    } catch (error) {
+      setOverviewError(getErrorMessage(error));
+      setTeamCards([]);
+    } finally {
+      setIsPageLoading(false);
     }
-    toastTimerRef.current = window.setTimeout(() => setToast(""), 1800);
+  };
+
+  const showToast = (message: string) => {
+    messageApi.success(message);
   };
 
   const handleInvite = async (inviteCode: string) => {
-    const inviteText = `TeamTrip 邀请码：${inviteCode}`;
-
     try {
-      await navigator.clipboard?.writeText(inviteText);
+      await navigator.clipboard?.writeText(inviteCode);
       showToast("邀请码已复制");
     } catch {
-      showToast(`邀请码：${inviteCode}`);
+      messageApi.info(`邀请码：${inviteCode}`);
     }
   };
 
@@ -283,51 +279,40 @@ export function MyTeamsPage() {
       window.localStorage.removeItem("teamtrip-auth-user");
       navigate("/login");
     } catch {
-      showToast("退出登录失败，请稍后重试");
+      messageApi.error("退出登录失败，请稍后重试");
     }
   };
 
-  const completeModal = ({ name, destination, inviteCode, cover }: { name: string; destination?: string; inviteCode?: string; cover?: string }) => {
-    if (modalType === "create") {
-      const teamId = `team-${Date.now()}`;
-      setTeamCards((current) => [
-        {
-          id: teamId,
+  const completeModal = async ({ name, destination, inviteCode }: { name: string; destination?: string; inviteCode?: string; cover?: string }) => {
+    try {
+      setIsModalSubmitting(true);
+
+      if (modalType === "create") {
+        await teamsService.createTeam({
           name,
-          destination: destination || "待确认地点",
-          members: 1,
-          role: "Owner",
-          status: "待填写日期",
-          statusTone: "orange",
-          cover: cover || (current.length % 2 === 0 ? cityCover : trainCover),
-          inviteCode: `TT-${teamId.slice(-6).toUpperCase()}`,
-        },
-        ...current,
-      ]);
-      showToast("团队已创建");
-    } else {
-      const joinedCode = inviteCode || `TT-${Date.now()}`;
-      setTeamCards((current) => [
-        {
-          id: `joined-${Date.now()}`,
-          name: name || "新加入的旅行小队",
-          destination: "待确认地点",
-          members: 3,
-          role: "Member",
-          status: "待填写日期",
-          statusTone: "orange",
-          cover: current.length % 2 === 0 ? trainCover : lakeCover,
-          inviteCode: joinedCode,
-        },
-        ...current,
-      ]);
-      showToast("已加入团队");
+          destination: destination || undefined,
+        });
+        showToast("团队已创建");
+      } else {
+        const joined = await teamsService.joinTeam({
+          inviteCode: (inviteCode || "").trim().toUpperCase(),
+        });
+
+        showToast(joined.needTripProfile ? "已加入团队，请先完成 Trip-BTI" : "已加入团队");
+      }
+
+      closeModal();
+      await loadOverview();
+    } catch (error) {
+      messageApi.error(getErrorMessage(error));
+    } finally {
+      setIsModalSubmitting(false);
     }
-    closeModal();
   };
 
   return (
     <main className="my-teams-page">
+      {contextHolder}
       <AppHeader
         title="我的团队"
         onCreateTeam={() => setModalType("create")}
@@ -336,142 +321,164 @@ export function MyTeamsPage() {
       />
 
       <div className="my-teams-page__content">
-        <section className="my-teams-overview" aria-label="个人与团队状态">
-          <article className="welcome-card">
-            <div className="welcome-card__avatar">
-              <img src={avatar} alt="Laow" />
-              <button type="button" aria-label="更换头像">
-                <Camera size={22} />
-              </button>
-            </div>
+        {isPageLoading ? (
+          <MyTeamsSkeleton />
+        ) : (
+          <>
+            <section className="my-teams-overview" aria-label="个人与团队状态">
+              <Card className="welcome-card" variant="outlined">
+                <div className="welcome-card__avatar">
+                  <Avatar alt={nickname} size={156} src={avatar} />
+                </div>
 
-            <div className="welcome-card__body">
-              <div className="welcome-card__plane" aria-hidden="true" />
-              <h2>Hi，Laow，欢迎回来</h2>
-              <p>继续你的团队旅行规划，遇见更多美好风景</p>
+                <div className="welcome-card__body">
+                  <div aria-hidden="true" />
+                  <h2>Hi，{nickname}，欢迎回来</h2>
+                  <p>继续你的团队旅行规划，遇见更多美好风景</p>
 
-              <button className="travel-bti-row" type="button" onClick={() => navigate("/travel-bti/result")}>
-                <CheckCircle2 size={30} />
-                <span>
-                  <small>Travel-BTI 旅行性格测试</small>
-                  <strong>已完成测试</strong>
-                </span>
-                <ChevronRight size={24} />
-              </button>
+                  <div
+                    className="travel-bti-row"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(user?.tripProfileCompleted ? "/travel-bti/result" : "/travel-bti")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        navigate(user?.tripProfileCompleted ? "/travel-bti/result" : "/travel-bti");
+                      }
+                    }}
+                  >
+                    <CheckCircle2 size={30} />
+                    <span>
+                      <small>Trip-BTI 旅行性格测试</small>
+                      <strong>{tripProfileText}</strong>
+                    </span>
+                    <ChevronRight size={24} />
+                  </div>
 
-              <div className="persona-row">
-                <span className="persona-row__icon" aria-hidden="true">
-                  <Map size={21} />
-                </span>
-                <strong>街巷收藏家</strong>
-                <em>慢游</em>
-                <em>人文</em>
-                <em>规划</em>
-              </div>
-            </div>
-          </article>
-
-          <article className="status-card">
-            <h2>我的团队状态</h2>
-            <div className="status-card__stats">
-              <div className="status-stat status-stat--green">
-                <Users size={46} />
-                <strong>{teamCards.length} <small>个</small></strong>
-                <span>已加入团队</span>
-              </div>
-              <div className="status-stat status-stat--blue">
-                <CalendarDays size={46} />
-                <strong>{pendingDateCount} <small>个</small></strong>
-                <span>待填写日期</span>
-              </div>
-              <div className="status-stat status-stat--orange">
-                <ClipboardCopy size={46} />
-                <strong>{planningCount} <small>个</small></strong>
-                <span>规划中</span>
-              </div>
-            </div>
-            <p>
-              <Lightbulb size={21} />
-              完善行程信息，让旅程更顺利
-            </p>
-          </article>
-        </section>
-
-        <section className="teams-panel" aria-label="我的团队">
-          <header className="teams-panel__header">
-            <div>
-              <h2>我的团队</h2>
-              <p>与你的伙伴一起规划行程，开启下一段旅程</p>
-            </div>
-          </header>
-
-          {hasTeams ? (
-            <div className="teams-panel__grid">
-              {teamCards.map((team) => {
-                return (
-                  <article className="team-card" key={team.id}>
-                    <img className="team-card__cover" src={team.cover} alt="" />
-                    <div className="team-card__main">
-                      <div className="team-card__title-row">
-                        <h3>{team.name}</h3>
-                        <button type="button" aria-label="更多团队操作">
-                          <MoreHorizontal size={24} />
-                        </button>
-                      </div>
-                      <p className="team-card__meta">
-                        <MapPin size={18} />
-                        {team.destination}
-                      </p>
-                      <p className="team-card__meta">
-                        <Users size={18} />
-                        {team.members} 人
-                      </p>
-                      <div className="team-card__actions">
-                        <button className="my-teams-secondary-button" type="button" onClick={() => handleInvite(team.inviteCode)}>
-                          <Copy size={18} />
-                          复制邀请码
-                        </button>
-                        <button className="my-teams-primary-button" type="button" onClick={() => enterTeam(team.id)}>
-                          进入团队
-                        </button>
-                      </div>
+                  <div className="persona-row">
+                    <div className="persona-row__title">
+                      <span className="persona-row__icon" aria-hidden="true">
+                        <Map size={21} />
+                      </span>
+                      <strong>{archetypeName || (user?.tripProfileCompleted ? "旅行风格" : "偏好待生成")}</strong>
                     </div>
-                    <div className="team-card__badges">
-                      <span className={`role-badge ${team.role === "Owner" ? "owner" : ""}`}>{team.role}</span>
-                      <span className={`status-badge ${team.statusTone}`}>{team.status}</span>
+                    <div className="persona-row__tags">
+                      {styleTags.slice(0, 3).map((tag) => (
+                        <Tag className="persona-tag" key={tag} color="cyan" variant="filled">
+                          {tag}
+                        </Tag>
+                      ))}
                     </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <section className="teams-empty-state" aria-label="暂无团队">
-              <img src={emptySignpost} alt="" />
-              <h3>你还没有进入任何团队</h3>
-              <p>创建一个团队，或通过邀请码加入朋友团队，一起走起。</p>
-              <div className="teams-empty-state__actions">
-                <button className="my-teams-primary-button" type="button" onClick={() => setModalType("create")}>
-                  <Users size={18} />
-                  创建团队
-                </button>
-                <button className="my-teams-secondary-button" type="button" onClick={() => setModalType("join")}>
-                  <UserPlus size={18} />
-                  加入朋友团队
-                </button>
-              </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="status-card" variant="outlined">
+                <h2>我的团队状态</h2>
+                <div className="status-card__stats">
+                  <div className="status-stat status-stat--green">
+                    <Users size={46} />
+                    <strong>{totalJoined} <small>个</small></strong>
+                    <span>已加入团队</span>
+                  </div>
+                  <div className="status-stat status-stat--blue">
+                    <CalendarDays size={46} />
+                    <strong>{pendingDateCount} <small>个</small></strong>
+                    <span>待填写日期</span>
+                  </div>
+                  <div className="status-stat status-stat--orange">
+                    <ClipboardCopy size={46} />
+                    <strong>{planningCount} <small>个</small></strong>
+                    <span>规划中</span>
+                  </div>
+                </div>
+                <p className="status-card__hint">
+                  <Lightbulb size={21} />
+                  完善行程信息，让旅程更顺利
+                </p>
+              </Card>
             </section>
-          )}
 
-          <footer className="teams-panel__privacy">
-            <Lock size={22} />
-            所有团队数据仅对团队成员可见，保障你的隐私安全
-          </footer>
-        </section>
+            <Card className="teams-panel" variant="outlined" aria-label="我的团队">
+              <header className="teams-panel__header">
+                <div>
+                  <h2>我的团队</h2>
+                  <p>{overviewError || "与你的伙伴一起规划行程，开启下一段旅程"}</p>
+                </div>
+              </header>
+
+              {hasTeams ? (
+                <div className="teams-panel__grid">
+                  {teamCards.map((team) => {
+                    return (
+                      <Card className="team-card" key={team.id} variant="outlined">
+                        <img className="team-card__cover" src={team.cover} alt="" />
+                        <div className="team-card__main">
+                          <div className="team-card__title-row">
+                            <h3>{team.name}</h3>
+                            <Button
+                              aria-label="更多团队操作"
+                              className="team-card__more-button"
+                              icon={<MoreHorizontal size={24} />}
+                              type="text"
+                            />
+                          </div>
+                          <p className="team-card__meta">
+                            <MapPin size={18} />
+                            {team.destination}
+                          </p>
+                          <p className="team-card__meta">
+                            <Users size={18} />
+                            {team.members} 人
+                          </p>
+                          <div className="team-card__actions">
+                            <Button block icon={<Copy size={18} />} onClick={() => handleInvite(team.inviteCode)}>
+                              复制邀请码
+                            </Button>
+                            <Button block type="primary" onClick={() => enterTeam(team.id)}>
+                              进入团队
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="team-card__badges">
+                          <Tag className={`role-badge ${team.role === "Owner" ? "owner" : ""}`} variant="filled">
+                            {team.role}
+                          </Tag>
+                          <Tag className={`status-badge ${team.statusTone}`} variant="filled">
+                            {team.status}
+                          </Tag>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <section className="teams-empty-state" aria-label="暂无团队">
+                  <img src={emptySignpost} alt="" />
+                  <h3>你还没有进入任何团队</h3>
+                  <p>创建一个团队，或通过邀请码加入朋友团队，一起走起。</p>
+                  <div className="teams-empty-state__actions">
+                    <Button icon={<Users size={18} />} type="primary" onClick={() => setModalType("create")}>
+                      创建团队
+                    </Button>
+                    <Button icon={<UserPlus size={18} />} onClick={() => setModalType("join")}>
+                      加入朋友团队
+                    </Button>
+                  </div>
+                </section>
+              )}
+
+              <footer className="teams-panel__privacy">
+                <Lock size={22} />
+                所有团队数据仅对团队成员可见，保障你的隐私安全
+              </footer>
+            </Card>
+          </>
+        )}
       </div>
 
-      {isPageLoading && <Loading fullscreen text="LOADING" size={128} />}
-      {toast && <div className="my-teams-toast" role="status">{toast}</div>}
-      {modalType && <ActionModal type={modalType} onClose={closeModal} onDone={completeModal} />}
+      {modalType && <ActionModal type={modalType} onClose={closeModal} onDone={completeModal} isSubmitting={isModalSubmitting} />}
     </main>
   );
 }
