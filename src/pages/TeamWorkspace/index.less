@@ -792,46 +792,68 @@
   color: #008f82;
 }
 
-.ai-summary-item {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 12px;
-  padding: 14px;
-  margin-top: 10px;
-  background: rgba(230, 248, 245, 0.62);
+.ai-summary-primary {
+  padding: 18px;
+  background: linear-gradient(135deg, rgba(230, 248, 245, 0.92), rgba(239, 246, 255, 0.76));
   border: 1px solid rgba(0, 168, 137, 0.18);
-  border-radius: 12px;
+  border-radius: 16px;
 }
 
-.ai-summary-item svg {
-  color: #008f82;
-}
-
-.ai-summary-item p,
-.ai-note p {
-  margin: 5px 0 0;
-  color: var(--tt-text-secondary);
-  line-height: 1.65;
-}
-
-.ai-note {
-  margin-top: 14px;
-  padding: 12px 2px 0;
-  color: var(--tt-text-muted);
-  border-top: 1px dashed var(--tt-border);
-}
-
-.ai-note strong {
+.ai-summary-primary > span {
+  display: block;
   color: var(--tt-text-secondary);
   font-size: 12px;
   font-weight: 700;
 }
 
-.ai-note p {
-  margin-top: 3px;
+.ai-summary-primary > strong {
+  display: block;
+  margin-top: 7px;
+  color: #087c6a;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.ai-summary-primary p {
+  margin: 8px 0 0;
+  color: var(--tt-text-secondary);
+  line-height: 1.65;
+}
+
+.ai-summary-line {
+  margin-top: 14px;
+  padding: 3px 4px 3px 16px;
+  border-left: 3px solid;
+}
+
+.ai-summary-line--distribution {
+  border-left-color: #3b82f6;
+}
+
+.ai-summary-line--difference {
+  border-left-color: #f59e0b;
+}
+
+.ai-summary-line strong {
+  color: var(--tt-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ai-summary-line p {
+  margin: 5px 0 0;
+  color: var(--tt-text-secondary);
+  line-height: 1.55;
+}
+
+.ai-note {
+  margin-top: 18px;
+  padding: 12px 2px 0;
   color: var(--tt-text-muted);
+  border-top: 1px dashed var(--tt-border);
   font-size: 12px;
-  line-height: 1.5;
+  font-weight: 700;
 }
 
 .preference-panel {
@@ -896,11 +918,11 @@
 }
 
 .preference-pole--left {
-  color: #0f9488;
+  color: #087c6a;
 }
 
 .preference-pole--right {
-  color: #52759f;
+  color: #3d5f8c;
   text-align: right;
 }
 
@@ -925,13 +947,43 @@
     opacity 160ms ease;
 }
 
-.preference-axis__segment--left.is-active {
-  background: #14b8a6;
+.preference-axis__segment--left.preference-axis__segment--level-1.is-active {
+  background: #99ddd4;
   opacity: 1;
 }
 
-.preference-axis__segment--right.is-active {
+.preference-axis__segment--left.preference-axis__segment--level-2.is-active {
+  background: #5cc9ba;
+  opacity: 1;
+}
+
+.preference-axis__segment--left.preference-axis__segment--level-3.is-active {
+  background: #20ad9c;
+  opacity: 1;
+}
+
+.preference-axis__segment--left.preference-axis__segment--level-4.is-active {
+  background: #087c6a;
+  opacity: 1;
+}
+
+.preference-axis__segment--right.preference-axis__segment--level-1.is-active {
+  background: #b9cce3;
+  opacity: 1;
+}
+
+.preference-axis__segment--right.preference-axis__segment--level-2.is-active {
+  background: #8ca9cc;
+  opacity: 1;
+}
+
+.preference-axis__segment--right.preference-axis__segment--level-3.is-active {
   background: #5d83b3;
+  opacity: 1;
+}
+
+.preference-axis__segment--right.preference-axis__segment--level-4.is-active {
+  background: #3d5f8c;
   opacity: 1;
 }
 
@@ -976,14 +1028,44 @@
   transform: translateX(-50%);
 }
 
-.preference-axis__point.is-left {
-  background: #14b8a6;
-  box-shadow: 0 2px 7px rgba(20, 184, 166, 0.3);
+.preference-axis__point.is-left.preference-axis__point--level-1 {
+  background: #99ddd4;
+  box-shadow: 0 2px 7px rgba(153, 221, 212, 0.34);
 }
 
-.preference-axis__point.is-right {
+.preference-axis__point.is-left.preference-axis__point--level-2 {
+  background: #5cc9ba;
+  box-shadow: 0 2px 7px rgba(92, 201, 186, 0.34);
+}
+
+.preference-axis__point.is-left.preference-axis__point--level-3 {
+  background: #20ad9c;
+  box-shadow: 0 2px 7px rgba(32, 173, 156, 0.34);
+}
+
+.preference-axis__point.is-left.preference-axis__point--level-4 {
+  background: #087c6a;
+  box-shadow: 0 2px 7px rgba(8, 124, 106, 0.34);
+}
+
+.preference-axis__point.is-right.preference-axis__point--level-1 {
+  background: #b9cce3;
+  box-shadow: 0 2px 7px rgba(185, 204, 227, 0.36);
+}
+
+.preference-axis__point.is-right.preference-axis__point--level-2 {
+  background: #8ca9cc;
+  box-shadow: 0 2px 7px rgba(140, 169, 204, 0.36);
+}
+
+.preference-axis__point.is-right.preference-axis__point--level-3 {
   background: #5d83b3;
-  box-shadow: 0 2px 7px rgba(93, 131, 179, 0.3);
+  box-shadow: 0 2px 7px rgba(93, 131, 179, 0.34);
+}
+
+.preference-axis__point.is-right.preference-axis__point--level-4 {
+  background: #3d5f8c;
+  box-shadow: 0 2px 7px rgba(61, 95, 140, 0.34);
 }
 
 .preference-axis__point.is-neutral {
@@ -1002,14 +1084,72 @@
   gap: 10px;
 }
 
-.keyword-cloud span {
+.keyword-cloud__tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
   padding: 7px 11px;
-  color: #008f82;
-  background: var(--tt-primary-soft);
-  border: 1px solid rgba(0, 168, 137, 0.24);
-  border-radius: 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 800;
+  cursor: help;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.keyword-cloud__tag.is-featured {
+  min-height: 38px;
+  padding: 9px 15px;
+  font-size: 15px;
+}
+
+.keyword-cloud__tag:hover {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.keyword-cloud__tag--photo {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+
+.keyword-cloud__tag--social {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-color: #ede9fe;
+}
+
+.keyword-cloud__tag--pace {
+  color: #087c6a;
+  background: #f0fbf8;
+  border-color: #d5f2eb;
+}
+
+.keyword-cloud__tag--environment {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+.keyword-cloud__tag--food {
+  color: #c2410c;
+  background: #fff7ed;
+  border-color: #ffedd5;
+}
+
+.keyword-cloud__tag--exploration {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fef3c7;
+}
+
+.keyword-cloud__tag--general {
+  color: #475569;
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .keywords-card button {

@@ -21,12 +21,10 @@ import {
   Grid2X2,
   Info,
   LockKeyhole,
-  MessageSquareText,
   Route,
   Settings,
   Sparkles,
   UnlockKeyhole,
-  Users,
 } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
 import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
@@ -129,6 +127,37 @@ const getStoredUserId = () => {
   } catch {
     return undefined;
   }
+};
+
+type KeywordTone = "photo" | "environment" | "pace" | "social" | "food" | "exploration" | "general";
+
+const keywordGroups: Array<{
+  tone: KeywordTone;
+  source: string;
+  terms: string[];
+}> = [
+  { tone: "photo", source: "拍照偏好", terms: ["出片", "拍照", "打卡", "摄影", "镜头"] },
+  { tone: "social", source: "社交偏好", terms: ["热闹", "社交", "结伴", "聚会", "互动"] },
+  { tone: "pace", source: "行程节奏", terms: ["松弛", "轻松", "随意", "慢游", "留白", "紧凑", "节奏"] },
+  { tone: "environment", source: "环境偏好", terms: ["自然", "城市", "安静", "户外", "室内", "环境"] },
+  { tone: "food", source: "吃喝偏好", terms: ["美食", "吃", "餐厅", "咖啡", "口味"] },
+  { tone: "exploration", source: "探索偏好", terms: ["探索", "冒险", "小众", "经典", "自由"] },
+];
+
+const getKeywordMeta = (keyword: string) =>
+  keywordGroups.find((group) => group.terms.some((term) => keyword.includes(term))) || {
+    tone: "general" as const,
+    source: "综合偏好",
+  };
+
+const getTeamStyleTitle = (keywords: string[]) => {
+  const prioritizedTones: KeywordTone[] = ["social", "photo", "pace", "environment", "exploration", "food", "general"];
+  const selectedKeywords = prioritizedTones
+    .map((tone) => keywords.find((keyword) => getKeywordMeta(keyword).tone === tone))
+    .filter((keyword): keyword is string => Boolean(keyword))
+    .slice(0, 2);
+
+  return selectedKeywords.length ? `${selectedKeywords.join("")}型` : "共同探索型";
 };
 
 const formatRange = (range?: DateRange | null) => {
@@ -275,6 +304,8 @@ export function TeamWorkspacePage() {
     () => portrait?.dimensions?.filter((dimension) => dimension.riskLevel === "high" || dimension.riskLevel === "medium") || [],
     [portrait?.dimensions],
   );
+  const portraitKeywords = portrait?.keywords?.length ? portrait.keywords : [];
+  const teamStyleTitle = getTeamStyleTitle(portraitKeywords);
   const calendarValue = useMemo(() => dayjs(`${yearMonth}-01`), [yearMonth]);
   const calendarDayByDate = useMemo(() => new Map((calendar?.days || []).map((day) => [day.date, day])), [calendar?.days]);
   const selectedRanges = useMemo<DateRange[]>(() => {
@@ -712,15 +743,12 @@ export function TeamWorkspacePage() {
                       <Sparkles size={20} />
                       AI 团队总结
                     </h4>
-                    <article className="ai-summary-item">
-                      <Users size={20} />
-                      <div>
-                        <strong>本团整体偏向</strong>
-                        <p>{portrait?.summaryText || "成员完成 Trip-BTI 后会生成团队旅行画像。"}</p>
-                      </div>
+                    <article className="ai-summary-primary">
+                      <span>团队风格</span>
+                      <strong>{teamStyleTitle}</strong>
+                      <p>{portrait?.summaryText || "成员完成 Trip-BTI 后会生成团队旅行画像。"}</p>
                     </article>
-                    <article className="ai-summary-item">
-                      <MessageSquareText size={20} />
+                    <article className="ai-summary-line ai-summary-line--distribution">
                       <div>
                         <strong>人格分布</strong>
                         <p>
@@ -733,8 +761,7 @@ export function TeamWorkspacePage() {
                         </p>
                       </div>
                     </article>
-                    <article className="ai-summary-item">
-                      <AlertCircle size={20} />
+                    <article className="ai-summary-line ai-summary-line--difference">
                       <div>
                         <strong>分歧提示</strong>
                         <p>
@@ -744,12 +771,7 @@ export function TeamWorkspacePage() {
                       </div>
                     </article>
                     <div className="ai-note" role="note">
-                      <strong>画像更新时间</strong>
-                      <p>
-                        {portrait?.computedAt
-                          ? `${portrait.computedAt.replace("T", " ").slice(0, 16)} 更新，短时间内沿用本次分析结果。`
-                          : "成员偏好发生变化后，团队画像会自动更新。"}
-                      </p>
+                      画像数据约 30 分钟自动更新
                     </div>
                   </div>
 
@@ -790,7 +812,9 @@ export function TeamWorkspacePage() {
                                 <div className="preference-axis">
                                   {preferenceSideSegments.map((_, index) => (
                                     <i
-                                      className={`preference-axis__segment preference-axis__segment--left ${
+                                      className={`preference-axis__segment preference-axis__segment--left preference-axis__segment--level-${
+                                        4 - index
+                                      } ${
                                         preferenceDirection === "left" && index >= 4 - activeSegmentCount ? "is-active" : ""
                                       }`}
                                       key={`left-${index}`}
@@ -803,14 +827,16 @@ export function TeamWorkspacePage() {
                                   />
                                   {preferenceSideSegments.map((_, index) => (
                                     <i
-                                      className={`preference-axis__segment preference-axis__segment--right ${
+                                      className={`preference-axis__segment preference-axis__segment--right preference-axis__segment--level-${
+                                        index + 1
+                                      } ${
                                         preferenceDirection === "right" && index < activeSegmentCount ? "is-active" : ""
                                       }`}
                                       key={`right-${index}`}
                                     />
                                   ))}
                                   <b
-                                    className={`preference-axis__point is-${preferenceDirection}`}
+                                    className={`preference-axis__point is-${preferenceDirection} preference-axis__point--level-${activeSegmentCount}`}
                                     style={{ left: `${preferencePosition}%` }}
                                   >
                                     <span>{preferenceValueLabel}</span>
@@ -830,8 +856,16 @@ export function TeamWorkspacePage() {
                         成员偏好关键词 <span>Top 词云</span>
                       </h4>
                       <div className="keyword-cloud">
-                        {(portrait?.keywords?.length ? portrait.keywords : ["等待成员完成测试"]).map((keyword) => (
-                          <span key={keyword}>{keyword}</span>
+                        {(portrait?.keywords?.length ? portrait.keywords : ["等待成员完成测试"]).map((keyword, index) => (
+                          <Tooltip key={keyword} title={`来自${getKeywordMeta(keyword).source}`}>
+                            <span
+                              className={`keyword-cloud__tag keyword-cloud__tag--${getKeywordMeta(keyword).tone} ${
+                                index < 2 ? "is-featured" : ""
+                              }`}
+                            >
+                              {keyword}
+                            </span>
+                          </Tooltip>
                         ))}
                       </div>
                     </article>

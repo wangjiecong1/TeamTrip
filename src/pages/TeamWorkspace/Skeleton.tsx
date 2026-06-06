@@ -180,19 +180,26 @@ export function TeamWorkspaceSkeleton() {
                   <Skeleton.Input active size="small" style={line(112, 20)} />
                 </h4>
 
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <article className="ai-summary-item" key={index}>
-                    <span className="workspace-skeleton__icon" />
-                    <div>
-                      <Skeleton.Input active size="small" style={line(index === 0 ? "42%" : "32%", 18, 4)} />
-                      <Skeleton active paragraph={{ rows: 2, width: ["96%", index === 1 ? "72%" : "84%"] }} title={false} />
-                    </div>
+                <article className="ai-summary-primary">
+                  <Skeleton.Input active size="small" style={line(58, 13, 4)} />
+                  <Skeleton.Input active size="small" style={line(142, 25, 6)} />
+                  <Skeleton active paragraph={{ rows: 2, width: ["96%", "78%"] }} title={false} />
+                </article>
+
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <article
+                    className={`ai-summary-line ${
+                      index === 0 ? "ai-summary-line--distribution" : "ai-summary-line--difference"
+                    }`}
+                    key={index}
+                  >
+                    <Skeleton.Input active size="small" style={line(index === 0 ? 68 : 62, 16, 4)} />
+                    <Skeleton.Input active size="small" style={line(index === 0 ? "62%" : "74%", 15, 4)} />
                   </article>
                 ))}
 
                 <div className="ai-note">
-                  <Skeleton.Input active size="small" style={line(76, 18)} />
-                  <Skeleton active paragraph={{ rows: 2, width: ["94%", "66%"] }} title={false} />
+                  <Skeleton.Input active size="small" style={line(164, 13, 4)} />
                 </div>
               </div>
 
@@ -226,7 +233,12 @@ export function TeamWorkspaceSkeleton() {
                   </h4>
                   <div className="keyword-cloud">
                     {[72, 92, 58, 104, 76, 64].map((width, index) => (
-                      <Skeleton.Input active key={index} size="small" style={line(width, 32, 8)} />
+                      <Skeleton.Input
+                        active
+                        key={index}
+                        size="small"
+                        style={line(width, index < 2 ? 38 : 32, 999)}
+                      />
                     ))}
                   </div>
                 </article>
