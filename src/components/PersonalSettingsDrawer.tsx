@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Avatar, Button, Drawer, Form, Input, Skeleton, Tabs, Tag, message } from "antd";
+import { Avatar, Button, Drawer, Form, Input, Skeleton, Tabs, message } from "antd";
 import { Lock, Mail, Phone, ShieldCheck, User } from "lucide-react";
 import { ApiError, authService, UserResponse } from "../services";
+import { StatusTag, StatusTagVariant } from "./StatusTag";
 import defaultAvatar from "../../assets/common/app-header-user-avatar.svg";
 import "./PersonalSettingsDrawer.less";
 
@@ -35,6 +36,26 @@ const getErrorMessage = (error: unknown) => {
   }
 
   return "请求失败，请稍后重试";
+};
+
+const getProfileStatusVariant = (statusText?: string | null): StatusTagVariant => {
+  if (!statusText) {
+    return "neutral";
+  }
+
+  if (statusText.includes("过期")) {
+    return "expired";
+  }
+
+  if (statusText.includes("完成") || statusText.includes("正常") || statusText.includes("启用")) {
+    return "completed";
+  }
+
+  if (statusText.includes("待") || statusText.includes("未")) {
+    return "pending";
+  }
+
+  return "neutral";
 };
 
 const normalizeOptionalValue = (value?: string) => {
@@ -221,8 +242,10 @@ export function PersonalSettingsDrawer({ open, onClose }: PersonalSettingsDrawer
               <h2>{user?.nickname || user?.username || "旅行者"}</h2>
               <p>{user?.username || "当前登录账号"}</p>
               <div className="personal-settings-profile__tags">
-                {user?.statusText && <Tag>{user.statusText}</Tag>}
-                {user?.tripProfileStatusText && <Tag color="cyan">{user.tripProfileStatusText}</Tag>}
+                {user?.statusText && <StatusTag variant={getProfileStatusVariant(user.statusText)}>{user.statusText}</StatusTag>}
+                {user?.tripProfileStatusText && (
+                  <StatusTag variant={getProfileStatusVariant(user.tripProfileStatusText)}>{user.tripProfileStatusText}</StatusTag>
+                )}
               </div>
             </div>
           </section>
