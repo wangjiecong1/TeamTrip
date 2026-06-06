@@ -8,8 +8,7 @@
 
 .my-teams-page .ant-card,
 .my-teams-page .ant-card *,
-.my-teams-page .ant-btn,
-.my-teams-page .ant-tag {
+.my-teams-page .ant-btn {
   transition: none !important;
 }
 
@@ -174,28 +173,10 @@
 
 .persona-row .persona-tag {
   min-width: 58px;
-  margin-inline-end: 0;
   padding: 6px 14px;
-  color: #087c6a;
-  background: #e9f8f4;
-  border: 1px solid #d4f0ea;
-  border-radius: 999px;
   font-size: 15px;
-  font-style: normal;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
-}
-
-.persona-row .persona-tag:nth-child(2) {
-  color: #0f7f77;
-  background: #edfafa;
-  border-color: #d9f1ef;
-}
-
-.persona-row .persona-tag:nth-child(3) {
-  color: #0a7a61;
-  background: #edf8f2;
-  border-color: #d9eee6;
 }
 
 .my-teams-skeleton-card .ant-skeleton-title,
@@ -468,7 +449,7 @@
 
 .team-card {
   position: relative;
-  min-height: 196px;
+  min-height: 214px;
   background: rgba(255, 255, 255, 0.99);
   border: 1px solid rgba(226, 232, 240, 0.92);
   border-radius: 17px;
@@ -477,20 +458,23 @@
 
 .team-card > .ant-card-body {
   display: grid;
-  grid-template-columns: 144px minmax(0, 1fr);
+  grid-template-columns: 176px minmax(0, 1fr);
   gap: 25px;
-  padding: 20px 24px 18px 20px;
+  padding: 22px 24px 22px 22px;
 }
 
 .team-card__cover {
-  width: 144px;
-  height: 130px;
-  align-self: center;
+  width: 176px;
+  height: 100%;
+  min-height: 168px;
+  align-self: stretch;
   border-radius: 13px;
   object-fit: cover;
 }
 
 .team-card__main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -548,7 +532,8 @@
   display: grid;
   grid-template-columns: 1fr 1.08fr;
   gap: 14px;
-  margin-top: 36px;
+  margin-top: auto;
+  padding-top: 30px;
 }
 
 .team-card__badges {
@@ -561,7 +546,7 @@
 }
 
 .team-card-skeleton {
-  min-height: 196px;
+  min-height: 214px;
   background: rgba(255, 255, 255, 0.99);
   border: 1px solid rgba(226, 232, 240, 0.92);
   border-radius: 17px;
@@ -570,16 +555,17 @@
 
 .team-card-skeleton > .ant-card-body {
   display: grid;
-  grid-template-columns: 144px minmax(0, 1fr);
+  grid-template-columns: 176px minmax(0, 1fr);
   gap: 25px;
-  min-height: 194px;
-  padding: 20px 24px 18px 20px;
+  min-height: 212px;
+  padding: 22px 24px 22px 22px;
 }
 
 .my-teams-skeleton-card__cover {
-  width: 144px !important;
-  height: 130px !important;
-  align-self: center;
+  width: 176px !important;
+  height: 100% !important;
+  min-height: 168px;
+  align-self: stretch;
   border-radius: 13px !important;
 }
 
@@ -638,66 +624,15 @@
 
 .role-badge,
 .status-badge {
-  display: inline-flex;
-  align-items: center;
   min-height: 31px;
-  margin-inline-end: 0;
   padding: 0 16px;
-  border-radius: 999px;
   font-size: 15px;
-  font-weight: 800;
 }
 
 .status-badge {
   min-height: 29px;
   padding: 0 13px;
   font-size: 14px;
-  font-weight: 700;
-}
-
-.role-badge {
-  color: #0f7f77;
-  background: #edfafa;
-  border: 1px solid #d9f1ef;
-}
-
-.role-badge.owner {
-  color: #087c6a;
-  background: #e6f7f4;
-  border-color: #c7ece5;
-}
-
-.status-badge::before {
-  width: 5px;
-  height: 5px;
-  margin-right: 8px;
-  background: currentColor;
-  border-radius: 50%;
-  content: "";
-}
-
-.status-badge.blue {
-  color: #087c6a;
-  background: #eaf8f5;
-  border: 1px solid #cdeee7;
-}
-
-.status-badge.orange {
-  color: #8a6a1f;
-  background: #fff8e6;
-  border: 1px solid #f1e3b8;
-}
-
-.status-badge.green {
-  color: #087c6a;
-  background: #e6f7f4;
-  border: 1px solid #c7ece5;
-}
-
-.status-badge.slate {
-  color: #526b73;
-  background: #f3f8f8;
-  border: 1px solid #e1eeee;
 }
 
 .teams-panel__privacy {

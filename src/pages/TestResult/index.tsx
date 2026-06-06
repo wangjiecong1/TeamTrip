@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Camera,
   Check,
-  CheckCircle2,
   ChevronRight,
   Compass,
   Heart,
@@ -18,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
+import { StatusTag } from "../../components/StatusTag";
 import { TravelBtiPageShell } from "../../components/TravelBtiPageShell";
 import { ApiError, ArchetypeCandidate, authService, authTokenStorage, tripBtiService, TripBtiProfile } from "../../services";
 import personaAvatar from "../../../assets/travel-bti-result/travel-bti-result-persona-avatar.png";
@@ -172,10 +172,7 @@ export function TestResultPage() {
         ) : (
         <>
         <div className="result-main-column">
-          <div className="result-status">
-            <CheckCircle2 size={30} fill="currentColor" />
-            <span>{profile?.tripProfileStatusText || "测试完成"}</span>
-          </div>
+          <StatusTag className="result-status" variant="completed">{profile?.tripProfileStatusText || "测试完成"}</StatusTag>
 
           <h1>你的旅行人格结果</h1>
           <p className="result-lead">基于你的回答生成的旅行人格画像，将帮助团队更懂彼此，一起规划更合拍的旅行。</p>

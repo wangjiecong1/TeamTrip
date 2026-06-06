@@ -47,7 +47,6 @@
 .itinerary-sidebar__user,
 .itinerary-topbar,
 .itinerary-status,
-.itinerary-status span,
 .itinerary-status button,
 .itinerary-day-card__head,
 .itinerary-day-card__head div,
@@ -122,17 +121,13 @@
   font-size: 13px;
 }
 
-.itinerary-team-mini em,
-.itinerary-stop__body em,
-.itinerary-place-preview span {
+.itinerary-team-mini .tt-status-tag,
+.itinerary-stop__body .tt-status-tag,
+.itinerary-place-preview .tt-status-tag {
   width: max-content;
-  padding: 4px 10px;
-  color: #087c6a;
-  background: var(--tt-primary-soft);
-  border-radius: 999px;
+  min-height: 24px;
+  padding: 0 10px;
   font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
 }
 
 .itinerary-nav {
@@ -182,14 +177,11 @@
   gap: 5px;
 }
 
-.itinerary-sidebar__user span {
+.itinerary-sidebar__user .tt-status-tag {
   width: max-content;
-  padding: 3px 9px;
-  color: #008f82;
-  background: var(--tt-primary-soft);
-  border-radius: 999px;
+  min-height: 24px;
+  padding: 0 10px;
   font-size: 12px;
-  font-weight: 800;
 }
 
 .itinerary-main {
@@ -223,13 +215,14 @@
   font-weight: 700;
 }
 
-.itinerary-status span,
+.itinerary-status .tt-status-tag,
 .itinerary-status button {
   gap: 8px;
 }
 
-.itinerary-status span svg {
-  color: #008f82;
+.itinerary-status .tt-status-tag {
+  min-height: 34px;
+  padding: 0 14px;
 }
 
 .itinerary-status button {

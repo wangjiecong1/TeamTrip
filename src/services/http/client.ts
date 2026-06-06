@@ -1,8 +1,8 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { ApiError, toApiError } from "./errors";
 
-const DEV_API_BASE_URL = "https://582c12c4.r9.cpolar.cn";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEV_API_BASE_URL;
+const DEFAULT_API_BASE_URL = "https://cricketchief.com";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
 const AUTH_TOKEN_STORAGE_KEY = "teamtrip-auth-token";
 const AUTH_REFRESH_TOKEN_STORAGE_KEY = "teamtrip-refresh-token";
 const AUTH_USER_STORAGE_KEY = "teamtrip-auth-user";

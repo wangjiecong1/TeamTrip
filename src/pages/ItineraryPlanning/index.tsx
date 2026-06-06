@@ -21,7 +21,6 @@ import {
   ArrowLeft,
   CalendarCheck,
   CalendarDays,
-  CheckCircle2,
   ChevronDown,
   ClipboardCheck,
   Edit3,
@@ -35,9 +34,9 @@ import {
   Search,
   Settings,
   Sparkles,
-  Users,
 } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
+import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
 import { fetchItineraryPlanningMock } from "../../data/mockData";
 import avatar from "../../../assets/common/app-header-user-avatar.svg";
 import teamCover from "../../../assets/login-register/login-register-hero-approved.webp";
@@ -49,6 +48,30 @@ const navItems = [
   { label: "最终行程单", icon: ClipboardCheck, externalPath: "/final-itinerary/TT-HZ-1024" },
   { label: "团队设置", icon: Settings },
 ];
+
+const getStatusVariant = (status: string): StatusTagVariant => {
+  if (status.includes("锁定")) {
+    return "locked";
+  }
+
+  if (status.includes("完成") || status.includes("保存") || status.includes("填写")) {
+    return "completed";
+  }
+
+  if (status.includes("待")) {
+    return "pending";
+  }
+
+  if (status.includes("进行")) {
+    return "active";
+  }
+
+  if (status.includes("规划") || status.includes("准备")) {
+    return "planning";
+  }
+
+  return "neutral";
+};
 
 type ItineraryStop = {
   id: string;
@@ -117,7 +140,7 @@ function SortableStopItem({ stop, index }: SortableStopItemProps) {
       <div className="itinerary-stop__body">
         <div>
           <strong>{stop.title}</strong>
-          <em>{stop.tag}</em>
+          <StatusTag variant="neutral">{stop.tag}</StatusTag>
         </div>
         <p><MapPin size={14} />{stop.address}</p>
         <small>{stop.note}</small>
@@ -219,7 +242,7 @@ export function ItineraryPlanningPage() {
           <div>
             <strong>{planningData.team.name}</strong>
             <span>{planningData.team.destination} · {planningData.team.memberCount} 人</span>
-            <em>{planningData.team.status}</em>
+            <StatusTag variant={getStatusVariant(planningData.team.status)}>{planningData.team.status}</StatusTag>
           </div>
         </section>
 
@@ -250,7 +273,7 @@ export function ItineraryPlanningPage() {
           <img src={avatar} alt="Laow" />
           <div>
             <strong>Laow</strong>
-            <span>Owner</span>
+            <StatusTag variant="owner">Owner</StatusTag>
           </div>
           <ChevronDown size={18} />
         </div>
@@ -263,8 +286,8 @@ export function ItineraryPlanningPage() {
             <p>按天安排要去的地方和顺序，锁定后生成最终行程单</p>
           </div>
           <div className="itinerary-status">
-            <span><Users size={18} />所有成员可编辑</span>
-            <span><CheckCircle2 size={18} />自动保存成功</span>
+            <StatusTag variant="member">所有成员可编辑</StatusTag>
+            <StatusTag variant="completed">自动保存成功</StatusTag>
             <button type="button"><Lock size={18} />锁定行程</button>
           </div>
         </header>
@@ -347,7 +370,7 @@ export function ItineraryPlanningPage() {
               <div className="itinerary-place-preview__thumb" />
               <div>
                 <strong>{planningData.placePreview.title}</strong>
-                <span>{planningData.placePreview.tag}</span>
+                <StatusTag variant="neutral">{planningData.placePreview.tag}</StatusTag>
                 <p><MapPin size={14} />{planningData.placePreview.address}</p>
                 <small>{planningData.placePreview.note}</small>
               </div>

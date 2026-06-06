@@ -428,48 +428,88 @@ background: var(--tt-red-soft);
 
 ## 10. 标签与状态规范
 
-标签统一使用胶囊形态。
+标签统一使用胶囊形态。状态标签必须按语义使用固定颜色，不允许同一种状态在不同页面出现不同颜色。
 
 ```css
 .tt-tag {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  height: 24px;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 600;
+  min-height: 30px;
+  padding: 0 14px;
+  gap: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 ```
 
-推荐状态：
+状态标签规范：
 
 ```css
-.tt-tag-primary {
-  background: var(--tt-primary-light);
-  color: var(--tt-primary-700);
+/* 规划中、成员 */
+.tt-status-tag--planning,
+.tt-status-tag--member {
+  color: #2F80ED;
+  background: #EFF6FF;
+  border-color: #E7F0FF;
 }
 
-.tt-tag-blue {
-  background: var(--tt-blue-soft);
-  color: var(--tt-blue);
+/* 进行中 */
+.tt-status-tag--active {
+  color: #12A66A;
+  background: #ECFDF4;
+  border-color: #DDF8EA;
 }
 
-.tt-tag-orange {
-  background: var(--tt-orange-soft);
-  color: var(--tt-orange);
+/* 已锁定、Owner */
+.tt-status-tag--locked,
+.tt-status-tag--owner {
+  color: #087C6A;
+  background: #F7FEFC;
+  border-color: #BFE9E2;
 }
 
-.tt-tag-green {
-  background: var(--tt-green-soft);
-  color: #15803D;
+/* 待填写 */
+.tt-status-tag--pending {
+  color: #F97316;
+  background: #FFF7ED;
+  border-color: #FFE8C7;
 }
 
-.tt-tag-gray {
-  background: var(--tt-bg-muted);
-  color: var(--tt-text-tertiary);
+/* 已完成 */
+.tt-status-tag--completed {
+  color: #16A65E;
+  background: #ECFDF4;
+  border-color: #DDF8EA;
+}
+
+/* 已过期 */
+.tt-status-tag--expired {
+  color: #64748B;
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
+/* 管理员 */
+.tt-status-tag--admin {
+  color: #7C3AED;
+  background: #F5F3FF;
+  border-color: #EFE9FF;
 }
 ```
+
+视觉规则：
+
+- `规划中`、`进行中`、`待填写` 用圆点前缀；
+- `已锁定` 用锁图标前缀；
+- `已完成` 用对勾图标前缀；
+- `已过期` 用灰色时间/回退图标前缀；
+- `成员`、`Owner`、`管理员` 不使用圆点，直接显示文字；
+- 不使用高饱和实心色；标签底色必须是浅色语义底；
+- 同一组标签间距至少 `10px`，不要挤在一起。
 
 不要使用高饱和实心标签堆满页面。  
 标签数量较多时，最多展示 3–5 个，其余折叠或弱化。

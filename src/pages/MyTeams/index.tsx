@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Avatar, Button, Card, Form, Input, message, Modal, Skeleton, Tag } from "antd";
+import { Avatar, Button, Card, Form, Input, message, Modal, Skeleton } from "antd";
 import {
   CalendarDays,
   CheckCircle2,
@@ -16,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
+import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
 import { ApiError, authService, authTokenStorage, MyTeamsOverviewResponse, teamsService, TeamCardResponse } from "../../services";
 import avatar from "../../../assets/common/app-header-user-avatar.svg";
 import lakeCover from "../../../assets/my-teams/my-teams-card-cover-lake.svg";
@@ -30,9 +31,10 @@ type TeamCard = {
   name: string;
   destination: string;
   members: number;
-  role: "Owner" | "Member";
+  role: string;
+  roleVariant: StatusTagVariant;
   status: string;
-  statusTone: "blue" | "orange" | "green" | "slate";
+  statusVariant: StatusTagVariant;
   cover: string;
   inviteCode: string;
 };
@@ -64,22 +66,58 @@ const getErrorMessage = (error: unknown) => {
   return "请求失败，请稍后重试";
 };
 
-const getStatusTone = (team: TeamCardResponse): TeamCard["statusTone"] => {
+const getStatusVariant = (team: TeamCardResponse): StatusTagVariant => {
   if (team.locked || team.teamStatus === 1) {
-    return "green";
+    return "locked";
   }
 
   const statusText = team.statusTag || team.teamStatusText || "";
 
+  if (statusText.includes("过期")) {
+    return "expired";
+  }
+
+  if (statusText.includes("完成")) {
+    return "completed";
+  }
+
+  if (statusText.includes("进行")) {
+    return "active";
+  }
+
   if (statusText.includes("待")) {
-    return "orange";
+    return "pending";
   }
 
   if (statusText.includes("规划") || statusText.includes("准备")) {
-    return "blue";
+    return "planning";
   }
 
-  return "slate";
+  return "neutral";
+};
+
+const getRoleVariant = (role?: string): StatusTagVariant => {
+  if (role === "owner") {
+    return "owner";
+  }
+
+  if (role === "admin") {
+    return "admin";
+  }
+
+  return "member";
+};
+
+const getRoleText = (role?: string, roleText?: string) => {
+  if (role === "owner") {
+    return "Owner";
+  }
+
+  if (role === "admin") {
+    return roleText || "管理员";
+  }
+
+  return roleText || "成员";
 };
 
 const mapTeamCard = (team: TeamCardResponse, index: number): TeamCard => ({
@@ -87,9 +125,10 @@ const mapTeamCard = (team: TeamCardResponse, index: number): TeamCard => ({
   name: team.name || "未命名旅行小队",
   destination: team.destination || "待确认地点",
   members: team.memberCount ?? 1,
-  role: team.role === "owner" ? "Owner" : "Member",
+  role: getRoleText(team.role, team.roleText),
+  roleVariant: getRoleVariant(team.role),
   status: team.statusTag || team.teamStatusText || (team.locked ? "已锁定行程" : "行程规划中"),
-  statusTone: getStatusTone(team),
+  statusVariant: getStatusVariant(team),
   cover: team.avatar || coverFallbacks[index % coverFallbacks.length],
   inviteCode: team.inviteCode || String(team.teamId),
 });
@@ -252,14 +291,10 @@ export function MyTeamsPage() {
     }
   };
 
-  const showToast = (message: string) => {
-    messageApi.success(message);
-  };
-
   const handleInvite = async (inviteCode: string) => {
     try {
       await navigator.clipboard?.writeText(inviteCode);
-      showToast("邀请码已复制");
+      messageApi.success("邀请码已复制");
     } catch {
       messageApi.info(`邀请码：${inviteCode}`);
     }
@@ -267,7 +302,7 @@ export function MyTeamsPage() {
 
   const enterTeam = (teamId: string) => {
     navigate(`/teams/${teamId}/workspace`);
-    showToast("正在进入团队空间");
+    messageApi.info("正在进入团队空间");
   };
 
   const closeModal = () => setModalType(null);
@@ -292,13 +327,13 @@ export function MyTeamsPage() {
           name,
           destination: destination || undefined,
         });
-        showToast("团队已创建");
+        messageApi.success("团队已创建");
       } else {
         const joined = await teamsService.joinTeam({
           inviteCode: (inviteCode || "").trim().toUpperCase(),
         });
 
-        showToast(joined.needTripProfile ? "已加入团队，请先完成 Trip-BTI" : "已加入团队");
+        messageApi.success(joined.needTripProfile ? "已加入团队，请先完成 Trip-BTI" : "已加入团队");
       }
 
       closeModal();
@@ -365,9 +400,9 @@ export function MyTeamsPage() {
                     </div>
                     <div className="persona-row__tags">
                       {styleTags.slice(0, 3).map((tag) => (
-                        <Tag className="persona-tag" key={tag} color="cyan" variant="filled">
+                        <StatusTag className="persona-tag" key={tag} variant="neutral">
                           {tag}
-                        </Tag>
+                        </StatusTag>
                       ))}
                     </div>
                   </div>
@@ -442,12 +477,12 @@ export function MyTeamsPage() {
                           </div>
                         </div>
                         <div className="team-card__badges">
-                          <Tag className={`role-badge ${team.role === "Owner" ? "owner" : ""}`} variant="filled">
+                          <StatusTag className="role-badge" variant={team.roleVariant}>
                             {team.role}
-                          </Tag>
-                          <Tag className={`status-badge ${team.statusTone}`} variant="filled">
+                          </StatusTag>
+                          <StatusTag className="status-badge" variant={team.statusVariant}>
                             {team.status}
-                          </Tag>
+                          </StatusTag>
                         </div>
                       </Card>
                     );
