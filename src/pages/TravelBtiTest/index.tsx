@@ -267,7 +267,7 @@ export function TravelBtiTestPage() {
             {
               label: "退出测试",
               icon: DoorOpen,
-              onClick: () => navigate("/teams"),
+              onClick: () => navigate(-1),
               variant: "ghost",
             },
           ]}
