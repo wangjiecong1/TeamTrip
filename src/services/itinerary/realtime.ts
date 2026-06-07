@@ -129,6 +129,7 @@ export const connectItineraryRealtime = ({
   const normalizedTripId = String(tripId);
   const wireTripId = /^\d+$/.test(normalizedTripId) ? Number(normalizedTripId) : tripId;
   let socket: Socket | null = null;
+  let currentToken: string | null = null;
   let disposed = false;
   let joined = false;
   let hasConnected = false;
@@ -229,7 +230,7 @@ export const connectItineraryRealtime = ({
     onStatusChange?.("connecting");
     socket.timeout(COMMAND_TIMEOUT_MS).emit(
       "trip:join",
-      { tripId: wireTripId },
+      { tripId: wireTripId, token: currentToken },
       (error: Error | null, ack?: JoinAck) => {
         if (disposed) {
           return;
@@ -311,6 +312,7 @@ export const connectItineraryRealtime = ({
       socket.disconnect();
     }
 
+    currentToken = token;
     joined = false;
     roomReady = createRoomReady();
     socket = createSocket(token);
