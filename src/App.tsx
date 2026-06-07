@@ -8,6 +8,7 @@ import { ItineraryPlanningPage } from "./pages/ItineraryPlanning";
 import { TestResultPage } from "./pages/TestResult";
 import { TravelBtiTestPage } from "./pages/TravelBtiTest";
 import { RequireAuth } from "./components/RequireAuth";
+import { BackendDebugFloatButton } from "./components/BackendDebugFloatButton";
 import { GlobalFeedbackFloatButton } from "./components/GlobalFeedbackFloatButton";
 
 export default function App() {
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="/test-result" element={<Navigate to="/travel-bti/result" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      <BackendDebugFloatButton />
       <GlobalFeedbackFloatButton />
     </>
   );

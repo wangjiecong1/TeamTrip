@@ -1,8 +1,9 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import { getRuntimeBackendOrigin } from "../runtimeBackend";
 import { ApiError, toApiError } from "./errors";
 
 const DEFAULT_API_BASE_URL = "https://cricketchief.com";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+const getApiBaseUrl = () => getRuntimeBackendOrigin() || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
 const AUTH_TOKEN_STORAGE_KEY = "teamtrip-auth-token";
 const AUTH_REFRESH_TOKEN_STORAGE_KEY = "teamtrip-refresh-token";
 const AUTH_USER_STORAGE_KEY = "teamtrip-auth-user";
@@ -30,7 +31,7 @@ type AuthRetryConfig = InternalAxiosRequestConfig & {
 let refreshRequestPromise: Promise<LoginResponseLike> | null = null;
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   timeout: 12000,
   withCredentials: true,
   headers: {
@@ -39,6 +40,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  config.baseURL = getApiBaseUrl();
   const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
 
   if (token) {
@@ -145,7 +147,7 @@ const refreshAccessToken = async () => {
   if (!refreshRequestPromise) {
     refreshRequestPromise = axios
       .request<LoginResponseLike | ApiResponse<LoginResponseLike>>({
-        baseURL: API_BASE_URL,
+        baseURL: getApiBaseUrl(),
         url: "/api/v1/auth/refresh",
         method: "post",
         params: { refreshToken },

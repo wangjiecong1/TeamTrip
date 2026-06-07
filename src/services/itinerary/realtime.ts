@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { authTokenStorage } from "../http/client";
+import { getRuntimeBackendOrigin } from "../runtimeBackend";
 import {
   AddItineraryItemCommand,
   ItineraryCommandAck,
@@ -64,6 +65,12 @@ type ItineraryRealtimeOptions = {
 const activeSockets = new Set<Socket>();
 
 const getSocketUrl = () => {
+  const runtimeBackendOrigin = getRuntimeBackendOrigin();
+
+  if (runtimeBackendOrigin) {
+    return runtimeBackendOrigin;
+  }
+
   if (import.meta.env.VITE_SOCKET_URL) {
     return import.meta.env.VITE_SOCKET_URL;
   }

@@ -1,0 +1,81 @@
+.backend-debug-float-button.ant-float-btn {
+  right: 32px;
+  bottom: 96px;
+  width: 52px;
+  height: 52px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.backend-debug-float-button .ant-float-btn-body {
+  background: #ffffff;
+  border: 1px solid rgba(0, 168, 137, 0.24);
+}
+
+.backend-debug-float-button.ant-float-btn-primary .ant-float-btn-body {
+  background: linear-gradient(135deg, #00a889 0%, #07967e 100%);
+  box-shadow: 0 12px 26px rgba(0, 168, 137, 0.2);
+}
+
+.backend-debug-float-button:not(.ant-float-btn-primary) .ant-float-btn-icon {
+  color: #07967e;
+}
+
+.backend-debug-popover {
+  width: 300px;
+}
+
+.backend-debug-popover__title {
+  color: var(--tt-text);
+  font-weight: 800;
+}
+
+.backend-debug-popover p {
+  margin: 0 0 12px;
+  color: var(--tt-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.backend-debug-popover .ant-input,
+.backend-debug-popover .ant-input-outlined {
+  border-radius: 12px;
+}
+
+.backend-debug-popover__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  color: var(--tt-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.backend-debug-popover__preview span {
+  color: #087c6a;
+}
+
+.backend-debug-popover__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.backend-debug-popover__actions .ant-btn {
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.backend-debug-popover__actions .ant-btn-primary {
+  background: linear-gradient(135deg, #00a889 0%, #07967e 100%);
+  border: none;
+  box-shadow: 0 8px 18px rgba(0, 168, 137, 0.18);
+}
+
+@media (max-width: 760px) {
+  .backend-debug-float-button.ant-float-btn {
+    right: 20px;
+    bottom: 88px;
+  }
+}
