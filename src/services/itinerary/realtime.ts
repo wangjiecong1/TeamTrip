@@ -355,7 +355,19 @@ export const connectItineraryRealtime = ({
     onProtocolError?.(error.message || "实时协作连接失败");
   }
 
-  const initialize = async () => {
+  const initialize = () => {
+    const currentToken = authTokenStorage.get();
+
+    if (currentToken && authTokenStorage.isAccessTokenValid()) {
+      onStatusChange?.("connecting");
+      replaceSocket(currentToken);
+      return;
+    }
+
+    void initializeAfterTokenRefresh();
+  };
+
+  const initializeAfterTokenRefresh = async () => {
     try {
       onStatusChange?.("connecting");
       const token = await authTokenStorage.ensureAccessToken();
@@ -440,7 +452,7 @@ export const connectItineraryRealtime = ({
     socket = null;
   };
 
-  void initialize();
+  initialize();
 
   return {
     addItem: (payload: AddItineraryItemCommand) => sendCommand("itinerary:item_add", payload),
