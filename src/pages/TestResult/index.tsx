@@ -1,43 +1,41 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Camera,
   Check,
   ChevronRight,
-  Compass,
-  Heart,
-  Home,
-  Map,
-  Mountain,
   RefreshCw,
-  Route,
   ShieldCheck,
-  UsersRound,
-  Wallet,
-  Zap,
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
 import { StatusTag } from "../../components/StatusTag";
 import { TravelBtiPageShell } from "../../components/TravelBtiPageShell";
-import { ApiError, ArchetypeCandidate, authService, authTokenStorage, tripBtiService, TripBtiProfile } from "../../services";
+import {
+  ApiError,
+  ArchetypeCandidate,
+  authService,
+  authTokenStorage,
+  tripBtiService,
+  TripBtiProfile,
+} from "../../services";
 import personaAvatar from "../../../assets/travel-bti-result/travel-bti-result-persona-avatar.png";
 import personaBanner from "../../../assets/travel-bti-result/travel-bti-result-persona-banner.png";
 import { TestResultSkeleton } from "./Skeleton";
 import "./index.less";
 
-const dimensions = [
-  { key: "schedule", label: "行程节奏", icon: Route, tone: "blue" },
-  { key: "interest", label: "自然人文", icon: Mountain, tone: "green" },
-  { key: "planning", label: "计划程度", icon: Map, tone: "blue" },
-  { key: "physical", label: "体力强度", icon: Zap, tone: "orange" },
-  { key: "environment", label: "环境偏好", icon: Home, tone: "green" },
-  { key: "food", label: "吃喝偏好", icon: Heart, tone: "rose" },
-  { key: "photo", label: "拍照风格", icon: Camera, tone: "blue" },
-  { key: "social", label: "社交倾向", icon: UsersRound, tone: "green" },
-  { key: "budget", label: "花费倾向", icon: Wallet, tone: "yellow" },
-  { key: "exploration", label: "探索程度", icon: Compass, tone: "blue" },
+const legacyDimensions = [
+  { key: "schedule", label: "行程节奏" },
+  { key: "interest", label: "自然人文" },
+  { key: "planning", label: "计划程度" },
+  { key: "physical", label: "体力强度" },
+  { key: "environment", label: "环境偏好" },
+  { key: "food", label: "吃喝偏好" },
+  { key: "photo", label: "拍照风格" },
+  { key: "social", label: "社交倾向" },
+  { key: "budget", label: "花费倾向" },
+  { key: "exploration", label: "探索程度" },
 ] as const;
 
+const preferenceSideSegments = Array.from({ length: 4 });
 const fallbackKeywords = ["轻旅行", "协作", "偏好画像"];
 const fallbackTips = ["把这份画像同步到团队工作台", "和队友对齐行程节奏、预算与探索偏好", "规划时优先处理差异较大的维度"];
 
@@ -53,27 +51,40 @@ const getErrorMessage = (error: unknown) => {
   return "请求失败，请稍后重试";
 };
 
-const getDimensionScore = (profile: TripBtiProfile | null, key: (typeof dimensions)[number]["key"]) => {
-  const value = profile?.[key];
-
-  if (typeof value !== "number") {
+const toPercentage = (value?: number) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     return 0;
   }
 
   return Math.round(Math.min(1, Math.max(0, value)) * 100);
 };
 
+const getDimensions = (profile: TripBtiProfile | null) => {
+  if (profile?.dimensions?.length) {
+    return [...profile.dimensions]
+      .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
+      .map((dimension) => ({
+        key: dimension.key,
+        label: dimension.label,
+        leftPolarity: dimension.leftPolarity || "左侧偏好",
+        rightPolarity: dimension.rightPolarity || "右侧偏好",
+        score: toPercentage(dimension.score),
+      }));
+  }
+
+  return legacyDimensions.map((dimension) => ({
+    ...dimension,
+    leftPolarity: "低",
+    rightPolarity: "高",
+    score: toPercentage(profile?.[dimension.key]),
+  }));
+};
+
 const getPrimaryCandidate = (profile: TripBtiProfile | null): ArchetypeCandidate | null => profile?.archetypeCandidates?.[0] ?? null;
 
 const getKeywords = (profile: TripBtiProfile | null) => {
-  const candidate = getPrimaryCandidate(profile);
-
-  if (candidate?.traits?.length) {
-    return candidate.traits;
-  }
-
-  if (profile?.typeCode) {
-    return profile.typeCode.split("·").filter(Boolean).slice(0, 5);
+  if (profile?.keywords?.length) {
+    return profile.keywords;
   }
 
   return fallbackKeywords;
@@ -101,6 +112,7 @@ export function TestResultPage() {
     "基于你的回答生成的旅行人格画像，将帮助团队更懂彼此，一起规划更合拍的旅行。";
   const keywords = getKeywords(profile);
   const travelTips = getTips(profile);
+  const dimensions = getDimensions(profile);
 
   useEffect(() => {
     let isMounted = true;
@@ -189,29 +201,54 @@ export function TestResultPage() {
             </div>
 
             <div className="dimension-heading">
-              <h3>10 维旅行偏好画像</h3>
-              <span>
-                偏好程度
-                <small>低</small>
-                <i />
-                <small>高</small>
-              </span>
+              <h3>{dimensions.length} 维旅行偏好画像</h3>
+              <span>悬停查看具体倾向</span>
             </div>
 
             <div className="dimension-grid">
-              {dimensions.map(({ key, label, icon: Icon, tone }) => {
-                const score = getDimensionScore(profile, key);
+              {dimensions.map(({ key, label, leftPolarity, rightPolarity, score }) => {
+                const direction = score < 46 ? "left" : score > 54 ? "right" : "neutral";
+                const valueLabel =
+                  direction === "neutral"
+                    ? "均衡"
+                    : `${direction === "left" ? leftPolarity : rightPolarity} ${Math.abs(score - 50) * 2}%`;
+                const activeSegmentCount =
+                  direction === "neutral" ? 0 : Math.max(1, Math.ceil((Math.abs(score - 50) / 50) * 4));
 
                 return (
-                  <div className="dimension-row" key={label}>
-                    <span className={`dimension-icon ${tone}`}>
-                      <Icon size={18} />
-                    </span>
+                  <div className="dimension-row" key={key} aria-label={`${label}：${valueLabel}`}>
                     <strong>{label}</strong>
-                    <div className="dimension-track">
-                      <span style={{ width: `${score}%` }} />
+                    <span className="dimension-pole dimension-pole--left">{leftPolarity}</span>
+                    <div className="dimension-axis">
+                      {preferenceSideSegments.map((_, index) => (
+                        <i
+                          className={`dimension-axis__segment dimension-axis__segment--left dimension-axis__segment--level-${
+                            4 - index
+                          } ${direction === "left" && index >= 4 - activeSegmentCount ? "is-active" : ""}`}
+                          key={`left-${index}`}
+                        />
+                      ))}
+                      <i
+                        className={`dimension-axis__segment dimension-axis__segment--neutral ${
+                          direction === "neutral" ? "is-active" : ""
+                        }`}
+                      />
+                      {preferenceSideSegments.map((_, index) => (
+                        <i
+                          className={`dimension-axis__segment dimension-axis__segment--right dimension-axis__segment--level-${
+                            index + 1
+                          } ${direction === "right" && index < activeSegmentCount ? "is-active" : ""}`}
+                          key={`right-${index}`}
+                        />
+                      ))}
+                      <b
+                        className={`dimension-axis__point is-${direction} dimension-axis__point--level-${activeSegmentCount}`}
+                        style={{ left: `${score}%` }}
+                      >
+                        <span>{valueLabel}</span>
+                      </b>
                     </div>
-                    <em>{score}</em>
+                    <span className="dimension-pole dimension-pole--right">{rightPolarity}</span>
                   </div>
                 );
               })}

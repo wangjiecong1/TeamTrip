@@ -31,6 +31,7 @@ export type TeamCardResponse = {
   roleText?: string;
   teamStatus?: number;
   teamStatusText?: string;
+  dateLocked?: boolean | number;
   locked?: boolean;
   inviteCode?: string;
   finalStartDate?: string;
@@ -73,6 +74,7 @@ export type TeamDetailResponse = {
   availabilityDoneCount?: number;
   teamStatus?: number;
   teamStatusText?: string;
+  dateLocked: boolean;
   locked: boolean;
   finalStartDate?: string | null;
   finalEndDate?: string | null;

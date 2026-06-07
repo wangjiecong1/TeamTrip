@@ -1,6 +1,7 @@
 import React from "react";
 import { Layout, Skeleton } from "antd";
 import { BrandMark } from "../../components/BrandMark";
+import "../../components/TeamSidebar.less";
 
 const { Sider, Content } = Layout;
 

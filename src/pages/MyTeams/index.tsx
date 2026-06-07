@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Avatar, Button, Card, Form, Input, message, Modal, Skeleton } from "antd";
+import { Avatar, BorderBeam, Button, Card, Form, Input, message, Modal, Skeleton } from "antd";
 import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
   ClipboardCopy,
+  Compass,
   Copy,
   Lightbulb,
   Lock,
@@ -266,9 +267,32 @@ export function MyTeamsPage() {
   const pendingDateCount = stats?.pendingAvailability ?? 0;
   const totalJoined = stats?.totalJoined ?? teamCards.length;
   const nickname = user?.nickname || "旅行者";
-  const tripProfileText = user?.tripProfileStatusText || (user?.tripProfileCompleted ? "已完成测试" : "待完成测试");
+  const isTripProfileCompleted = Boolean(user?.tripProfileCompleted);
+  const tripProfileText = user?.tripProfileStatusText || (isTripProfileCompleted ? "已完成测试" : "测试进行中");
+  const travelBtiPath = isTripProfileCompleted ? "/travel-bti/result" : "/travel-bti";
   const archetypeName = user?.archetype?.name;
-  const styleTags = user?.styleTags?.length ? user.styleTags : user?.tripProfileCompleted ? ["旅行画像"] : ["完成测试后生成"];
+  const styleTags = user?.styleTags?.length ? user.styleTags : ["旅行画像"];
+  const travelBtiRow = (
+    <div
+      className={`travel-bti-row ${isTripProfileCompleted ? "" : "is-active"}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(travelBtiPath)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(travelBtiPath);
+        }
+      }}
+    >
+      {isTripProfileCompleted ? <CheckCircle2 size={30} /> : <Compass size={30} />}
+      <span>
+        <small>Trip-BTI 旅行性格测试</small>
+        <strong>{tripProfileText}</strong>
+      </span>
+      <ChevronRight size={24} />
+    </div>
+  );
 
   useEffect(() => {
     loadOverview();
@@ -371,41 +395,31 @@ export function MyTeamsPage() {
                   <h2>Hi，{nickname}，欢迎回来</h2>
                   <p>继续你的团队旅行规划，遇见更多美好风景</p>
 
-                  <div
-                    className="travel-bti-row"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(user?.tripProfileCompleted ? "/travel-bti/result" : "/travel-bti")}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        navigate(user?.tripProfileCompleted ? "/travel-bti/result" : "/travel-bti");
-                      }
-                    }}
-                  >
-                    <CheckCircle2 size={30} />
-                    <span>
-                      <small>Trip-BTI 旅行性格测试</small>
-                      <strong>{tripProfileText}</strong>
-                    </span>
-                    <ChevronRight size={24} />
-                  </div>
+                  {isTripProfileCompleted ? (
+                    travelBtiRow
+                  ) : (
+                    <BorderBeam color="#F97316" outset={2}>
+                      {travelBtiRow}
+                    </BorderBeam>
+                  )}
 
-                  <div className="persona-row">
-                    <div className="persona-row__title">
-                      <span className="persona-row__icon" aria-hidden="true">
-                        <Map size={21} />
-                      </span>
-                      <strong>{archetypeName || (user?.tripProfileCompleted ? "旅行风格" : "偏好待生成")}</strong>
+                  {isTripProfileCompleted && (
+                    <div className="persona-row">
+                      <div className="persona-row__title">
+                        <span className="persona-row__icon" aria-hidden="true">
+                          <Map size={21} />
+                        </span>
+                        <strong>{archetypeName || "旅行风格"}</strong>
+                      </div>
+                      <div className="persona-row__tags">
+                        {styleTags.slice(0, 3).map((tag) => (
+                          <StatusTag className="persona-tag" key={tag} variant="neutral">
+                            {tag}
+                          </StatusTag>
+                        ))}
+                      </div>
                     </div>
-                    <div className="persona-row__tags">
-                      {styleTags.slice(0, 3).map((tag) => (
-                        <StatusTag className="persona-tag" key={tag} variant="neutral">
-                          {tag}
-                        </StatusTag>
-                      ))}
-                    </div>
-                  </div>
+                  )}
                 </div>
               </Card>
 

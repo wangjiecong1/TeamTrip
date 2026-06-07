@@ -63,15 +63,20 @@ export const teamsService = {
   getDetail: async (teamId: string | number): Promise<TeamDetailResponse> => {
     const response = await apiClient.get<TeamCardResponse | ApiResponse<TeamCardResponse>>(`/api/v1/teams/${teamId}`);
     const team = unwrapApiResponse(response.data);
+    const dateLocked =
+      team.dateLocked === true ||
+      Number(team.dateLocked) === 1 ||
+      Boolean(team.finalStartDate && team.finalEndDate);
 
     return {
       ...team,
+      dateLocked,
       locked: Boolean(team.locked),
       totalMemberCount: team.memberCount,
       memberCount: team.memberCount,
       myRole: team.role,
-      canLockDates: team.role === "owner" && !team.locked,
-      canUnlockDates: team.role === "owner" && Boolean(team.locked),
+      canLockDates: team.role === "owner" && !dateLocked,
+      canUnlockDates: team.role === "owner" && dateLocked,
     };
   },
 

@@ -36,5 +36,34 @@ export type {
   TeamPortraitResponse,
   WorkbenchPreparationResponse,
 } from "./teams";
+export {
+  connectItineraryRealtime,
+  disconnectItinerarySocket,
+  itineraryService,
+  invalidateItinerary,
+  itineraryQueryKeys,
+} from "./itinerary";
+export type {
+  AddItineraryItemCommand,
+  AmapPoiResult,
+  CreateItineraryItemRequest,
+  ItineraryDayGroup,
+  ItineraryItem,
+  ItineraryCommandAck,
+  ItineraryOnlineMember,
+  ItineraryRealtimeConnection,
+  ItineraryRealtimeStatus,
+  ItineraryServerEvent,
+  ItinerarySocketEventName,
+  ItinerarySocketSnapshot,
+  ItineraryTeam,
+  ItineraryTimeline,
+  MoveItineraryItemCommand,
+  ReorderItineraryRequest,
+  UpdateItineraryItemCommand,
+  UpdateItineraryItemRequest,
+} from "./itinerary";
+export { feedbacksService } from "./feedbacks";
+export type { FeedbackType, SubmitFeedbackRequest, UserFeedbackResponse } from "./feedbacks";
 export { authTokenStorage } from "./http/client";
 export { ApiError } from "./http/errors";

@@ -1,34 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar, DatePicker, Layout, message, Modal, Popover, Tooltip } from "antd";
-import calendarZhCN from "antd/es/calendar/locale/zh_CN";
-import datePickerZhCN from "antd/es/date-picker/locale/zh_CN";
+import type { Locale as AntdLocale } from "antd/es/locale";
+import zhCN from "antd/locale/zh_CN";
 import dayjs, { Dayjs } from "dayjs";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
-  CalendarCheck,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ClipboardCheck,
   Copy,
-  Edit3,
-  Grid2X2,
   Info,
   LockKeyhole,
   Route,
-  Settings,
   Sparkles,
   UnlockKeyhole,
 } from "lucide-react";
-import { BrandMark } from "../../components/BrandMark";
 import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
-import { UserAccountMenu } from "../../components/UserAccountMenu";
+import { TeamSidebar } from "../../components/TeamSidebar";
 import {
   ApiError,
   authService,
@@ -45,7 +38,8 @@ import { TeamWorkspaceSkeleton } from "./Skeleton";
 import "./index.less";
 
 const { RangePicker } = DatePicker;
-const { Sider, Content } = Layout;
+const { Content } = Layout;
+const datePickerLocale = (zhCN as AntdLocale).DatePicker;
 type AvailabilityRangeValue = [Dayjs | null, Dayjs | null] | null;
 type CalendarCellInfo = {
   originNode: React.ReactElement;
@@ -99,26 +93,6 @@ const getStatusVariant = (status = ""): StatusTagVariant => {
   return "neutral";
 };
 
-const getRoleVariant = (role?: string): StatusTagVariant => {
-  if (role === "owner") {
-    return "owner";
-  }
-
-  if (role === "admin") {
-    return "admin";
-  }
-
-  return "member";
-};
-
-const getRoleText = (member?: TeamMemberResponse, detail?: TeamDetailResponse) => {
-  if (member?.role === "owner" || detail?.myRole === "owner") {
-    return "Owner";
-  }
-
-  return member?.roleText || "成员";
-};
-
 const getStoredUserId = () => {
   try {
     const user = JSON.parse(window.localStorage.getItem("teamtrip-auth-user") || "null") as { id?: string | number; userId?: string | number };
@@ -165,10 +139,27 @@ const formatRange = (range?: DateRange | null) => {
     return "待锁定";
   }
 
-  const start = range.startDate.slice(5).replace("-", "月");
-  const end = range.endDate.slice(5).replace("-", "月");
+  const formatDate = (date: string) => date.slice(5).replace("-", ".");
+  const start = formatDate(range.startDate);
+  const end = formatDate(range.endDate);
 
-  return range.startDate === range.endDate ? `${start}日` : `${start}日 - ${end}日`;
+  return range.startDate === range.endDate ? start : `${start} - ${end}`;
+};
+
+const getRangePickerValue = (range?: DateRange | null): AvailabilityRangeValue => {
+  if (!range) {
+    return null;
+  }
+
+  return [dayjs(range.startDate), dayjs(range.endDate)];
+};
+
+const isDateInRange = (date: Dayjs, range?: DateRange | null) => {
+  if (!range) {
+    return false;
+  }
+
+  return !date.isBefore(dayjs(range.startDate), "day") && !date.isAfter(dayjs(range.endDate), "day");
 };
 
 const getCalendarLevelClassName = (day?: TeamCalendarDay) => {
@@ -206,23 +197,6 @@ const getCalendarLevelText = (day?: TeamCalendarDay) => {
 const clampPreferenceScore = (score?: number) => Math.min(1, Math.max(0, score ?? 0.5));
 const preferenceSideSegments = Array.from({ length: 4 });
 
-const getPreferenceExplanation = (leftLabel: string, rightLabel: string, score?: number) => {
-  const normalizedScore = clampPreferenceScore(score);
-  const distanceFromCenter = Math.abs(normalizedScore - 0.5) * 2;
-
-  if (distanceFromCenter < 0.12) {
-    return `团队在${leftLabel}与${rightLabel}之间较为均衡。`;
-  }
-
-  const preferredLabel = normalizedScore < 0.5 ? leftLabel : rightLabel;
-
-  if (distanceFromCenter < 0.6) {
-    return `团队整体更偏向${preferredLabel}，但并不极端。`;
-  }
-
-  return `团队明显更偏向${preferredLabel}，规划时可以优先考虑这一倾向。`;
-};
-
 export function TeamWorkspacePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -230,8 +204,9 @@ export function TeamWorkspacePage() {
   const { teamId = "" } = useParams();
   const [yearMonth, setYearMonth] = useState(getCurrentYearMonth);
   const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRangeValue>(null);
+  const [finalDateRangeValue, setFinalDateRangeValue] = useState<AvailabilityRangeValue>(null);
   const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
-  const [siderCollapsed, setSiderCollapsed] = useState(false);
+  const [finalDateModalOpen, setFinalDateModalOpen] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: queryKey.detail(teamId),
@@ -271,6 +246,7 @@ export function TeamWorkspacePage() {
   const portrait = portraitQuery.data;
   const calendar = calendarQuery.data;
   const preparation = preparationQuery.data;
+  const isTripProfileCompleted = Boolean(preparation?.tripProfileCompleted);
   const storedUserId = getStoredUserId();
   const currentMember =
     members.find((member) => String(member.userId) === String(storedUserId)) ||
@@ -279,26 +255,25 @@ export function TeamWorkspacePage() {
   const ownerName = detail?.ownerNickname || members.find((member) => member.role === "owner")?.nickname || "团队创建者";
   const tripProfilePendingMembers = members.filter((member) => !member.tripProfileCompleted);
   const availabilityPendingMembers = members.filter((member) => !member.availabilitySubmitted);
-  const statusText = detail?.statusTag || detail?.teamStatusText || (detail?.locked ? "已锁定行程" : "行程准备中");
-  const finalDateRange =
-    calendar?.finalDates?.[0] ||
-    (detail?.finalStartDate && detail?.finalEndDate ? { startDate: detail.finalStartDate, endDate: detail.finalEndDate } : null);
-  const hasFinalTravelDates = Boolean(detail?.locked && detail.finalStartDate && detail.finalEndDate);
-  const lockCandidate = calendar?.goldenDates?.[0] || preparation?.myDateRanges?.[0];
-  const isPageLoading =
-    detailQuery.isLoading ||
-    membersQuery.isLoading ||
-    portraitQuery.isLoading ||
-    preparationQuery.isLoading ||
-    calendarQuery.isLoading;
+  const statusText = detail?.statusTag || detail?.teamStatusText || (detail?.dateLocked ? "已锁定日期" : "行程准备中");
+  const finalDateRange = useMemo<DateRange | null>(
+    () =>
+      calendar?.finalDates?.[0] ||
+      (detail?.finalStartDate && detail?.finalEndDate ? { startDate: detail.finalStartDate, endDate: detail.finalEndDate } : null),
+    [calendar?.finalDates, detail?.finalEndDate, detail?.finalStartDate],
+  );
+  const totalMemberCount = calendar?.totalMembers ?? detail?.totalMemberCount ?? members.length;
+  const hasFinalTravelDates = Boolean(detail?.dateLocked && finalDateRange);
+  const lockCandidate = useMemo<DateRange | null>(
+    () => calendar?.goldenDates?.[0] || preparation?.myDateRanges?.[0] || null,
+    [calendar?.goldenDates, preparation?.myDateRanges],
+  );
+  const isInitialPageLoading =
+    (detailQuery.isLoading && !detailQuery.data) ||
+    (membersQuery.isLoading && !membersQuery.data) ||
+    (portraitQuery.isLoading && !portraitQuery.data) ||
+    (preparationQuery.isLoading && !preparationQuery.data);
   const pageError = [detailQuery.error, membersQuery.error, portraitQuery.error, preparationQuery.error, calendarQuery.error].find(Boolean);
-
-  const navItems = [
-    { label: "团队工作台", icon: Grid2X2, active: true, path: `/teams/${teamId}/workspace` },
-    { label: "行程规划", icon: CalendarCheck, path: `/teams/${teamId}/itinerary`, requiresFinalDates: true },
-    { label: "最终行程单", icon: ClipboardCheck, externalPath: `/final-itinerary/${detail?.inviteCode || teamId}` },
-    { label: "团队设置", icon: Settings },
-  ];
 
   const riskyDimensions = useMemo(
     () => portrait?.dimensions?.filter((dimension) => dimension.riskLevel === "high" || dimension.riskLevel === "medium") || [],
@@ -327,6 +302,12 @@ export function TeamWorkspacePage() {
   }, [preparation]);
 
   useEffect(() => {
+    if (!finalDateModalOpen) {
+      setFinalDateRangeValue(getRangePickerValue(finalDateRange || lockCandidate));
+    }
+  }, [finalDateModalOpen, finalDateRange, lockCandidate]);
+
+  useEffect(() => {
     const status = pageError instanceof ApiError ? pageError.status : undefined;
 
     if (status === 403) {
@@ -352,24 +333,28 @@ export function TeamWorkspacePage() {
   });
 
   const lockDatesMutation = useMutation({
-    mutationFn: () => {
-      if (detail?.canUnlockDates) {
-        return teamsService.unlockDates(teamId);
-      }
-
-      if (!lockCandidate) {
-        throw new Error("暂无可锁定日期");
-      }
-
-      return teamsService.lockDates(teamId, lockCandidate);
-    },
+    mutationFn: (dateRange: DateRange) => teamsService.lockDates(teamId, dateRange),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKey.detail(teamId) }),
         invalidateCalendarScope(),
-        detail?.canUnlockDates ? queryClient.invalidateQueries({ queryKey: queryKey.portrait(teamId) }) : Promise.resolve(),
+        queryClient.invalidateQueries({ queryKey: queryKey.portrait(teamId) }),
       ]);
-      messageApi.success(detail?.canUnlockDates ? "已解锁行程日期" : "已锁定行程日期");
+      messageApi.success("已锁定行程日期");
+      setFinalDateModalOpen(false);
+    },
+    onError: (error) => messageApi.error(getErrorMessage(error)),
+  });
+
+  const unlockDatesMutation = useMutation({
+    mutationFn: () => teamsService.unlockDates(teamId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKey.detail(teamId) }),
+        invalidateCalendarScope(),
+        queryClient.invalidateQueries({ queryKey: queryKey.portrait(teamId) }),
+      ]);
+      messageApi.success("已解锁行程日期");
     },
     onError: (error) => messageApi.error(getErrorMessage(error)),
   });
@@ -396,8 +381,37 @@ export function TeamWorkspacePage() {
     }
   };
 
-  const canToggleLock = Boolean(detail?.canUnlockDates || (detail?.canLockDates && lockCandidate)) && !lockDatesMutation.isPending;
+  const isOwner = detail?.myRole === "owner";
+  const isFinalDateMutating = lockDatesMutation.isPending || unlockDatesMutation.isPending;
+  const canOpenFinalDateModal = Boolean(isOwner && detail?.canLockDates) && !isFinalDateMutating;
+  const canUnlockFinalDate = Boolean(isOwner && detail?.canUnlockDates) && !isFinalDateMutating;
 
+  const openFinalDateModal = () => {
+    setFinalDateRangeValue(getRangePickerValue(finalDateRange || lockCandidate));
+    setFinalDateModalOpen(true);
+  };
+
+  const updateFinalDateRange = (dates: AvailabilityRangeValue) => {
+    setFinalDateRangeValue(dates);
+
+    if (dates?.[0]) {
+      setYearMonth(dates[0].format("YYYY-MM"));
+    }
+  };
+
+  const submitFinalDateRange = () => {
+    const [startDate, endDate] = finalDateRangeValue || [];
+
+    if (!startDate || !endDate) {
+      messageApi.warning("请选择完整的最终出行日期");
+      return;
+    }
+
+    lockDatesMutation.mutate({
+      startDate: startDate.format("YYYY-MM-DD"),
+      endDate: endDate.format("YYYY-MM-DD"),
+    });
+  };
   const updateAvailabilityRange = (dates: AvailabilityRangeValue) => {
     setAvailabilityRange(dates);
 
@@ -407,7 +421,7 @@ export function TeamWorkspacePage() {
 
     const [startDate, endDate] = dates || [];
 
-    if (startDate && endDate && !detail?.locked) {
+    if (startDate && endDate && !detail?.dateLocked) {
       saveAvailabilityMutation.mutate([
         {
           startDate: startDate.format("YYYY-MM-DD"),
@@ -467,75 +481,26 @@ export function TeamWorkspacePage() {
   };
 
   return (
-    <Layout hasSider className="team-workspace-page" aria-busy={isPageLoading}>
+    <Layout hasSider className="team-workspace-page" aria-busy={isInitialPageLoading}>
       {contextHolder}
-      {isPageLoading ? (
+      {isInitialPageLoading ? (
         <TeamWorkspaceSkeleton />
       ) : (
         <>
-        <Sider
-          aria-label="团队导航"
-          breakpoint="lg"
-          className="workspace-sidebar"
-          collapsed={siderCollapsed}
-          collapsedWidth={80}
-          theme="light"
-          trigger={null}
-          width={252}
-          onBreakpoint={setSiderCollapsed}
-        >
-        <div className="workspace-sidebar__brand">
-          <button
-            aria-label="返回首页"
-            className="workspace-sidebar__brand-button"
-            title="返回首页"
-            type="button"
-            onClick={() => navigate("/teams")}
-          >
-            <BrandMark />
-            <span>TeamTrip</span>
-          </button>
-        </div>
-
-        <nav className="workspace-nav">
-          {navItems.map(({ label, icon: Icon, active, path, externalPath, requiresFinalDates }) => (
-            <button
-              className={`workspace-nav__item ${active ? "active" : ""} ${requiresFinalDates && !hasFinalTravelDates ? "disabled" : ""}`}
-              key={label}
-              type="button"
-              onClick={() => {
-                if (requiresFinalDates && !hasFinalTravelDates) {
-                  messageApi.warning("请先锁定最终出行日期");
-                  return;
-                }
-
-                if (externalPath) {
-                  window.open(externalPath, "_blank", "noopener,noreferrer");
-                  return;
-                }
-
-                if (path) {
-                  navigate(path);
-                }
-              }}
-            >
-              <Icon size={20} />
-              <span className="workspace-nav__item-label">{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <UserAccountMenu placement="topRight" onLogout={handleLogout}>
-          <button aria-label="打开个人菜单" className="workspace-sidebar__user" type="button">
-            <img src={currentMember?.avatar || avatar} alt={currentMember?.nickname || "我"} />
-            <span className="workspace-sidebar__user-info">
-              <strong>{currentMember?.nickname || "我"}</strong>
-              <StatusTag variant={getRoleVariant(currentMember?.role || detail?.myRole)}>{getRoleText(currentMember, detail)}</StatusTag>
-            </span>
-            <ChevronDown size={18} />
-          </button>
-        </UserAccountMenu>
-      </Sider>
+        <TeamSidebar
+          activeItem="workspace"
+          hasFinalTravelDates={hasFinalTravelDates}
+          inviteCode={detail?.inviteCode}
+          teamId={teamId}
+          user={{
+            avatar: currentMember?.avatar,
+            nickname: currentMember?.nickname,
+            role: currentMember?.role || detail?.myRole,
+            roleText: currentMember?.roleText,
+          }}
+          onBlockedItinerary={() => messageApi.warning("请先锁定最终出行日期")}
+          onLogout={handleLogout}
+        />
 
       <Layout className="workspace-main-layout">
         <Content className="workspace-main">
@@ -551,24 +516,19 @@ export function TeamWorkspacePage() {
           <>
             <section className="workspace-hero-card">
               <img className="workspace-hero-card__cover" src={coverImage} alt="" />
-              <Tooltip title="复制邀请码">
-                <button
-                  aria-label="复制邀请码"
-                  className="workspace-invite-copy-button"
-                  disabled={!detail}
-                  type="button"
-                  onClick={copyInviteCode}
-                >
-                  <Copy size={15} />
-                  <span>邀请码</span>
-                  <strong>{detail?.inviteCode || String(detail?.teamId || teamId)}</strong>
-                </button>
-              </Tooltip>
               <div className="workspace-hero-card__body">
                 <div className="workspace-title-row">
-                  <h2>{detail?.name || (isPageLoading ? "团队信息加载中" : "团队旅行")}</h2>
-                  <button type="button" aria-label="编辑团队名称">
-                    <Edit3 size={18} />
+                  <h2>{detail?.name || (isInitialPageLoading ? "团队信息加载中" : "团队旅行")}</h2>
+                  <button
+                    aria-label="复制邀请码"
+                    className="workspace-invite-copy-button"
+                    disabled={!detail}
+                    type="button"
+                    onClick={copyInviteCode}
+                  >
+                    <span>邀请码</span>
+                    <strong>{detail?.inviteCode || String(detail?.teamId || teamId)}</strong>
+                    <Copy size={14} />
                   </button>
                 </div>
                 <p>
@@ -578,9 +538,9 @@ export function TeamWorkspacePage() {
                 <div className="workspace-team-stats">
                   <div>
                     <span>团队创建者</span>
-                    <strong>
+                    <strong className="workspace-team-owner-name">
                       <img src={members.find((member) => member.role === "owner")?.avatar || avatar} alt="" />
-                      {ownerName}
+                      <span>{ownerName}</span>
                     </strong>
                   </div>
                   <div>
@@ -609,14 +569,21 @@ export function TeamWorkspacePage() {
                     <span>最终出行日期</span>
                     <div className="workspace-final-date-row">
                       <strong>{formatRange(finalDateRange)}</strong>
-                      {detail?.myRole === "owner" && (
-                        <Tooltip title={detail?.canUnlockDates ? "解锁最终日期" : lockCandidate ? "锁定最终日期" : "暂无可锁定日期"}>
+                      {isOwner && (
+                        <Tooltip title={detail?.canUnlockDates ? "解锁最终日期" : detail?.canLockDates ? "选择并锁定最终日期" : "暂无锁定权限"}>
                           <button
-                            aria-label={detail?.canUnlockDates ? "解锁最终日期" : "锁定最终日期"}
-                            className="workspace-date-lock-button"
-                            disabled={!canToggleLock}
+                            aria-label={detail?.canUnlockDates ? "解锁最终日期" : "选择并锁定最终日期"}
+                            className={`workspace-date-lock-button ${detail?.canUnlockDates ? "is-unlock" : "is-lock"}`}
+                            disabled={detail?.canUnlockDates ? !canUnlockFinalDate : !canOpenFinalDateModal}
                             type="button"
-                            onClick={() => lockDatesMutation.mutate()}
+                            onClick={() => {
+                              if (detail?.canUnlockDates) {
+                                unlockDatesMutation.mutate();
+                                return;
+                              }
+
+                              openFinalDateModal();
+                            }}
                           >
                             {detail?.canUnlockDates ? <UnlockKeyhole size={17} /> : <LockKeyhole size={17} />}
                           </button>
@@ -652,16 +619,22 @@ export function TeamWorkspacePage() {
                     我的准备
                   </h3>
                   <div className="readiness-list">
-                    <button className="readiness-item" type="button" onClick={() => navigate("/travel-bti")}>
+                    <button
+                      className={`readiness-item ${isTripProfileCompleted ? "is-completed" : "is-pending"}`}
+                      type="button"
+                      onClick={() =>
+                        navigate(isTripProfileCompleted ? "/travel-bti/result" : "/travel-bti")
+                      }
+                    >
                       <span className="readiness-item__icon">
-                        <CheckCircle2 size={20} />
+                        {isTripProfileCompleted ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
                       </span>
                       <span>
                         <strong>Trip-BTI 测试</strong>
-                        <small>{preparation?.tripProfileStatusText || (preparation?.tripProfileCompleted ? "已完成 · 供团队画像参考" : "待完成 · 完成后画像会刷新")}</small>
+                        <small>{preparation?.tripProfileStatusText || (isTripProfileCompleted ? "已完成 · 供团队画像参考" : "待完成 · 完成后画像会刷新")}</small>
                       </span>
-                      <StatusTag variant={preparation?.tripProfileCompleted ? "completed" : "pending"}>
-                        {preparation?.tripProfileCompleted ? "已完成" : "待填写"}
+                      <StatusTag variant={isTripProfileCompleted ? "completed" : "pending"}>
+                        {isTripProfileCompleted ? "已完成" : "待填写"}
                       </StatusTag>
                       <ChevronRight size={19} />
                     </button>
@@ -690,7 +663,6 @@ export function TeamWorkspacePage() {
                 <article className="workspace-card calendar-card">
                   <h3>
                     可出行时间汇总
-                    <Info size={18} />
                   </h3>
                   <div className="calendar-actions">
                     <div className={`team-availability-calendar ${calendarQuery.isFetching ? "is-loading" : ""}`}>
@@ -718,7 +690,7 @@ export function TeamWorkspacePage() {
                             </div>
                           </div>
                         )}
-                        locale={calendarZhCN}
+                        locale={datePickerLocale}
                         mode="month"
                         onPanelChange={changeCalendarMonth}
                         value={calendarValue}
@@ -798,53 +770,48 @@ export function TeamWorkspacePage() {
                               : Math.max(1, Math.ceil((Math.abs(preferencePosition - 50) / 50) * 4));
 
                           return (
-                            <Tooltip
-                              classNames={{ container: "workspace-preference-tooltip__container" }}
+                            <div
+                              className="preference-row"
                               key={row.dimension}
-                              title={getPreferenceExplanation(leftLabel, rightLabel, row.averageScore)}
+                              aria-label={`${row.label}：${preferenceValueLabel}`}
                             >
-                              <div
-                                className="preference-row"
-                                aria-label={`${row.label}：${preferenceValueLabel}`}
-                              >
-                                <strong>{row.label}</strong>
-                                <span className="preference-pole preference-pole--left">{leftLabel}</span>
-                                <div className="preference-axis">
-                                  {preferenceSideSegments.map((_, index) => (
-                                    <i
-                                      className={`preference-axis__segment preference-axis__segment--left preference-axis__segment--level-${
-                                        4 - index
-                                      } ${
-                                        preferenceDirection === "left" && index >= 4 - activeSegmentCount ? "is-active" : ""
-                                      }`}
-                                      key={`left-${index}`}
-                                    />
-                                  ))}
+                              <strong>{row.label}</strong>
+                              <span className="preference-pole preference-pole--left">{leftLabel}</span>
+                              <div className="preference-axis">
+                                {preferenceSideSegments.map((_, index) => (
                                   <i
-                                    className={`preference-axis__segment preference-axis__segment--neutral ${
-                                      preferenceDirection === "neutral" ? "is-active" : ""
+                                    className={`preference-axis__segment preference-axis__segment--left preference-axis__segment--level-${
+                                      4 - index
+                                    } ${
+                                      preferenceDirection === "left" && index >= 4 - activeSegmentCount ? "is-active" : ""
                                     }`}
+                                    key={`left-${index}`}
                                   />
-                                  {preferenceSideSegments.map((_, index) => (
-                                    <i
-                                      className={`preference-axis__segment preference-axis__segment--right preference-axis__segment--level-${
-                                        index + 1
-                                      } ${
-                                        preferenceDirection === "right" && index < activeSegmentCount ? "is-active" : ""
-                                      }`}
-                                      key={`right-${index}`}
-                                    />
-                                  ))}
-                                  <b
-                                    className={`preference-axis__point is-${preferenceDirection} preference-axis__point--level-${activeSegmentCount}`}
-                                    style={{ left: `${preferencePosition}%` }}
-                                  >
-                                    <span>{preferenceValueLabel}</span>
-                                  </b>
-                                </div>
-                                <span className="preference-pole preference-pole--right">{rightLabel}</span>
+                                ))}
+                                <i
+                                  className={`preference-axis__segment preference-axis__segment--neutral ${
+                                    preferenceDirection === "neutral" ? "is-active" : ""
+                                  }`}
+                                />
+                                {preferenceSideSegments.map((_, index) => (
+                                  <i
+                                    className={`preference-axis__segment preference-axis__segment--right preference-axis__segment--level-${
+                                      index + 1
+                                    } ${
+                                      preferenceDirection === "right" && index < activeSegmentCount ? "is-active" : ""
+                                    }`}
+                                    key={`right-${index}`}
+                                  />
+                                ))}
+                                <b
+                                  className={`preference-axis__point is-${preferenceDirection} preference-axis__point--level-${activeSegmentCount}`}
+                                  style={{ left: `${preferencePosition}%` }}
+                                >
+                                  <span>{preferenceValueLabel}</span>
+                                </b>
                               </div>
-                            </Tooltip>
+                              <span className="preference-pole preference-pole--right">{rightLabel}</span>
+                            </div>
                           );
                         })}
                         {!portrait?.dimensions?.length && <p className="workspace-empty-text">暂无画像维度数据</p>}
@@ -882,6 +849,45 @@ export function TeamWorkspacePage() {
 
       <Modal
         centered
+        className="workspace-final-date-modal workspace-availability-modal"
+        confirmLoading={lockDatesMutation.isPending}
+        destroyOnHidden
+        mask={{ enabled: true, blur: true, closable: !lockDatesMutation.isPending }}
+        okButtonProps={{ disabled: !finalDateRangeValue?.[0] || !finalDateRangeValue?.[1] }}
+        okText="锁定日期"
+        open={finalDateModalOpen}
+        title={
+          <span className="workspace-availability-modal__title">
+            <LockKeyhole size={20} />
+            锁定最终出行日期
+          </span>
+        }
+        width={480}
+        onCancel={() => {
+          if (!lockDatesMutation.isPending) {
+            setFinalDateModalOpen(false);
+          }
+        }}
+        onOk={submitFinalDateRange}
+      >
+        <div className="workspace-availability-modal__content">
+          <p>参考下方可出行日期汇总，选择团队最终出行的开始和结束日期。</p>
+          <RangePicker
+            allowClear
+            className="calendar-range-picker"
+            disabled={lockDatesMutation.isPending}
+            format="YYYY-MM-DD"
+            locale={datePickerLocale}
+            placeholder={["开始日期", "结束日期"]}
+            value={finalDateRangeValue}
+            onChange={(dates) => updateFinalDateRange(dates)}
+          />
+          {lockCandidate && <small>已根据团队可出行情况预填推荐日期：{formatRange(lockCandidate)}</small>}
+        </div>
+      </Modal>
+
+      <Modal
+        centered
         className="workspace-availability-modal"
         destroyOnHidden
         footer={null}
@@ -901,13 +907,13 @@ export function TeamWorkspacePage() {
         }}
       >
         <div className="workspace-availability-modal__content">
-          <p>{detail?.locked ? "最终日期已锁定，当前不可修改。" : "选择完整的开始和结束日期后将自动保存。"}</p>
+          <p>{detail?.dateLocked ? "最终日期已锁定，当前不可修改。" : "选择完整的开始和结束日期后将自动保存。"}</p>
           <RangePicker
             allowClear
             className="calendar-range-picker"
-            disabled={detail?.locked || saveAvailabilityMutation.isPending}
+            disabled={detail?.dateLocked || saveAvailabilityMutation.isPending}
             format="YYYY-MM-DD"
-            locale={datePickerZhCN}
+            locale={datePickerLocale}
             placeholder={["开始日期", "结束日期"]}
             value={availabilityRange}
             onChange={(dates) => updateAvailabilityRange(dates)}

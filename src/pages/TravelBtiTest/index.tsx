@@ -8,7 +8,6 @@ import {
   DoorOpen,
   HelpCircle,
   MapPin,
-  MessageSquare,
   MinusCircle,
   UsersRound,
 } from "lucide-react";
@@ -347,14 +346,6 @@ export function TravelBtiTestPage() {
                       <span>{option.label}</span>
                     </button>
                   ))}
-                </div>
-
-                <div className="quiz-dimension-line">
-                  <MessageSquare size={18} />
-                  <span>当前维度：</span>
-                  <strong>
-                    {currentQuestion.dimensionLabel}：{currentQuestion.leftLabel} vs {currentQuestion.rightLabel}
-                  </strong>
                 </div>
 
                 {errorMessage && <p className="quiz-error-message">{errorMessage}</p>}

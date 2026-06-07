@@ -1,0 +1,78 @@
+.global-feedback-float-button.ant-float-btn {
+  right: 32px;
+  bottom: 32px;
+  width: 52px;
+  height: 52px;
+  box-shadow: 0 12px 26px rgba(0, 168, 137, 0.22);
+}
+
+.global-feedback-float-button .ant-float-btn-body {
+  background: linear-gradient(135deg, #00a889 0%, #07967e 100%);
+}
+
+.global-feedback-float-button .ant-float-btn-body:hover {
+  background: linear-gradient(135deg, #10b8a5 0%, #087c6a 100%);
+}
+
+.global-feedback-modal .ant-modal-content {
+  border: 1px solid var(--tt-border-light);
+  border-radius: 24px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+}
+
+.global-feedback-modal .ant-modal-header {
+  margin-bottom: 8px;
+}
+
+.global-feedback-modal__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tt-text);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.global-feedback-modal__title svg {
+  color: #00a889;
+}
+
+.global-feedback-modal__intro {
+  margin: 0 0 18px;
+  color: var(--tt-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.global-feedback-modal__type {
+  width: 100%;
+  padding: 3px;
+  background: var(--tt-bg-muted);
+  border-radius: 999px;
+}
+
+.global-feedback-modal__type .ant-segmented-item {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.global-feedback-modal__type .ant-segmented-item-selected {
+  color: #087c6a;
+}
+
+.global-feedback-modal .ant-form-item-label > label {
+  color: var(--tt-text-secondary);
+  font-weight: 700;
+}
+
+.global-feedback-modal .ant-input,
+.global-feedback-modal .ant-input-outlined {
+  border-radius: 12px;
+}
+
+@media (max-width: 760px) {
+  .global-feedback-float-button.ant-float-btn {
+    right: 20px;
+    bottom: 24px;
+  }
+}

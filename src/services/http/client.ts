@@ -233,5 +233,19 @@ export const authTokenStorage = {
   set: (token: string) => window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token),
   setRefresh: (token: string) => window.localStorage.setItem(AUTH_REFRESH_TOKEN_STORAGE_KEY, token),
   clearRefresh: () => window.localStorage.removeItem(AUTH_REFRESH_TOKEN_STORAGE_KEY),
+  ensureAccessToken: async () => {
+    if (isAccessTokenValid()) {
+      return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+    }
+
+    const response = await refreshAccessToken();
+
+    return response.accessToken || response.token || null;
+  },
+  refreshAccessToken: async () => {
+    const response = await refreshAccessToken();
+
+    return response.accessToken || response.token || null;
+  },
   clear: clearAuthSession,
 };

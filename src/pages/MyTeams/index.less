@@ -95,6 +95,7 @@
 }
 
 .travel-bti-row {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -114,6 +115,25 @@
 .travel-bti-row:hover {
   color: var(--tt-primary);
   background: linear-gradient(90deg, rgba(231, 248, 245, 0.98), rgba(244, 250, 252, 0.98));
+}
+
+.travel-bti-row.is-active {
+  color: #c05621;
+  background: #fff7ed;
+  border-color: rgba(249, 115, 22, 0.24);
+}
+
+.travel-bti-row.is-active:hover {
+  color: #c05621;
+  background: #ffedd5;
+}
+
+.travel-bti-row.is-active > svg:first-child {
+  color: #f97316;
+}
+
+.travel-bti-row.is-active strong {
+  color: #c05621;
 }
 
 .travel-bti-row:focus-visible {
