@@ -88,17 +88,17 @@ export type AmapPoiResult = {
 };
 
 export type ItineraryOnlineMember = {
-  userId: string;
+  userId: string | number;
   nickname?: string;
   avatar?: string;
 };
 
 export type ItinerarySocketSnapshot = {
-  tripId: string;
-  days: unknown[];
-  items: unknown[];
-  locked: boolean;
-  serverVersion: number;
+  tripId?: string | number;
+  days?: unknown[];
+  items?: unknown[];
+  locked?: boolean;
+  serverVersion?: number;
   [key: string]: unknown;
 };
 
@@ -108,54 +108,63 @@ export type ItinerarySocketEventName =
   | "itinerary:item_deleted"
   | "itinerary:item_moved"
   | "itinerary:locked"
-  | "itinerary:unlocked";
+  | "itinerary:unlocked"
+  | "itinerary:conflict_detected";
 
-export type ItineraryServerEvent<T = Record<string, unknown>> = {
-  eventId: string;
-  tripId: string;
-  serverVersion: number;
-  operatorUserId: string;
-  payload: T;
-  createdAt: string;
+export type ItineraryRealtimeActor = {
+  userId: number;
+  displayName?: string;
+  avatar?: string;
+};
+
+export type ItineraryRealtimeFrame<T = Record<string, unknown>> = {
+  type: string;
+  code: number;
+  message?: string;
+  actor?: ItineraryRealtimeActor | null;
+  occurredAt: string;
+  data: T;
+  version?: number;
+  traceId?: string;
 };
 
 export type ItineraryCommandAck =
   | {
       ok: true;
-      serverVersion: number;
+      serverVersion?: number;
+      locked?: boolean;
     }
   | {
       ok: false;
-      reason?: string;
+      reason?: string | number;
       message?: string;
     };
 
 export type AddItineraryItemCommand = {
-  dayId: string;
-  placeId?: string;
-  name: string;
+  itemDate: string;
+  placeName: string;
   address?: string;
-  lat?: number;
-  lng?: number;
+  longitude?: number;
+  latitude?: number;
+  amapPoiId?: string;
+  poiType?: string;
   startTime?: string | null;
   endTime?: string | null;
+  durationMinutes?: number;
   note?: string;
 };
 
 export type UpdateItineraryItemCommand = {
-  itemId: string;
-  patch: Partial<Omit<AddItineraryItemCommand, "dayId" | "placeId" | "name">> & {
-    dayId?: string;
-    placeId?: string;
-    name?: string;
-  };
+  itemId: string | number;
+  patch: Partial<AddItineraryItemCommand>;
 };
 
 export type MoveItineraryItemCommand = {
-  itemId: string;
+  itemId: string | number;
   fromDayId: string;
   toDayId: string;
   toIndex: number;
+  orderedItemIds: Array<string | number>;
 };
 
 export type ItineraryRealtimeConnection = {
@@ -165,6 +174,7 @@ export type ItineraryRealtimeConnection = {
   moveItem: (payload: MoveItineraryItemCommand) => Promise<ItineraryCommandAck>;
   lock: () => Promise<ItineraryCommandAck>;
   unlock: () => Promise<ItineraryCommandAck>;
+  sync: (force?: boolean) => Promise<void>;
   disconnect: () => void;
 };
 

@@ -5,8 +5,8 @@ import {
   ItineraryCommandAck,
   ItineraryOnlineMember,
   ItineraryRealtimeConnection,
+  ItineraryRealtimeFrame,
   ItineraryRealtimeStatus,
-  ItineraryServerEvent,
   ItinerarySocketEventName,
   ItinerarySocketSnapshot,
   MoveItineraryItemCommand,
@@ -14,7 +14,7 @@ import {
 } from "./types";
 
 const DEFAULT_API_BASE_URL = "https://cricketchief.com";
-const COMMAND_TIMEOUT_MS = 5_000;
+const COMMAND_TIMEOUT_MS = 8_000;
 const SERVER_EVENT_NAMES: ItinerarySocketEventName[] = [
   "itinerary:item_added",
   "itinerary:item_updated",
@@ -22,7 +22,14 @@ const SERVER_EVENT_NAMES: ItinerarySocketEventName[] = [
   "itinerary:item_moved",
   "itinerary:locked",
   "itinerary:unlocked",
+  "itinerary:conflict_detected",
 ];
+
+type FailedAck = {
+  ok: false;
+  reason?: string | number;
+  message?: string;
+};
 
 type JoinAck =
   | {
@@ -31,39 +38,30 @@ type JoinAck =
       onlineMembers: ItineraryOnlineMember[];
       serverVersion: number;
     }
-  | {
-      ok: false;
-      reason?: string;
-      message?: string;
-    };
+  | FailedAck;
 
 type SyncAck =
   | {
       ok: true;
       mode: "snapshot";
       snapshot: ItinerarySocketSnapshot;
+      serverVersion?: number;
     }
-  | {
-      ok: true;
-      mode: "events";
-      events: Array<ItineraryServerEvent & { type?: ItinerarySocketEventName; eventName?: ItinerarySocketEventName }>;
-    }
-  | {
-      ok: false;
-      reason?: string;
-      message?: string;
-    };
+  | FailedAck;
 
 type ItineraryRealtimeOptions = {
   tripId: string | number;
-  onEvent: (eventName: ItinerarySocketEventName, event: ItineraryServerEvent) => void;
+  onEvent: (eventName: ItinerarySocketEventName, frame: ItineraryRealtimeFrame) => void;
   onSnapshot?: (snapshot: ItinerarySocketSnapshot) => void;
   onOnlineMembersChange?: (members: ItineraryOnlineMember[]) => void;
+  onVersionConflict?: (frame: ItineraryRealtimeFrame) => void;
+  onPersonalError?: (frame: ItineraryRealtimeFrame) => void;
+  onCommandRejected?: (ack: FailedAck) => void;
   onStatusChange?: (status: ItineraryRealtimeStatus) => void;
   onProtocolError?: (message: string) => void;
 };
 
-let sharedSocket: Socket | null = null;
+const activeSockets = new Set<Socket>();
 
 const getSocketUrl = () => {
   if (import.meta.env.VITE_SOCKET_URL) {
@@ -75,25 +73,16 @@ const getSocketUrl = () => {
 
 const createSocket = (token: string) =>
   io(getSocketUrl(), {
+    path: "/socket.io",
     auth: { token },
     transports: ["websocket", "polling"],
     reconnection: true,
     reconnectionAttempts: Infinity,
-    reconnectionDelay: 1_000,
-    reconnectionDelayMax: 5_000,
-    timeout: 20_000,
+    reconnectionDelay: 2_000,
+    reconnectionDelayMax: 30_000,
+    timeout: 8_000,
     autoConnect: false,
   });
-
-const getSocket = (token: string) => {
-  if (!sharedSocket) {
-    sharedSocket = createSocket(token);
-  } else {
-    sharedSocket.auth = { token };
-  }
-
-  return sharedSocket;
-};
 
 const createClientEventId = () =>
   typeof window.crypto?.randomUUID === "function"
@@ -102,16 +91,28 @@ const createClientEventId = () =>
 
 const getAckError = (ack?: unknown) => {
   if (ack && typeof ack === "object") {
-    const response = ack as { reason?: string; message?: string };
-    return response.message || response.reason || "实时协作操作失败";
+    const response = ack as { reason?: string | number; message?: string };
+    return response.message || String(response.reason || "实时协作操作失败");
   }
 
   return "实时协作操作失败";
 };
 
+const isAuthorizationError = (message: string) =>
+  message.toUpperCase().includes("UNAUTHORIZED") ||
+  message.includes("401") ||
+  message.toUpperCase().includes("FAILED_AUTHORIZATION");
+
+const isFrameForTrip = (frame: ItineraryRealtimeFrame, tripId: string) => {
+  const frameTeamId = (frame.data as Record<string, unknown> | undefined)?.teamId;
+  return frameTeamId === undefined || String(frameTeamId) === tripId;
+};
+
 export const disconnectItinerarySocket = () => {
-  sharedSocket?.disconnect();
-  sharedSocket = null;
+  for (const socket of activeSockets) {
+    socket.disconnect();
+  }
+  activeSockets.clear();
 };
 
 export const connectItineraryRealtime = ({
@@ -119,100 +120,116 @@ export const connectItineraryRealtime = ({
   onEvent,
   onSnapshot,
   onOnlineMembersChange,
+  onVersionConflict,
+  onPersonalError,
+  onCommandRejected,
   onStatusChange,
   onProtocolError,
 }: ItineraryRealtimeOptions): ItineraryRealtimeConnection => {
   const normalizedTripId = String(tripId);
+  const wireTripId = /^\d+$/.test(normalizedTripId) ? Number(normalizedTripId) : tripId;
   let socket: Socket | null = null;
   let disposed = false;
   let joined = false;
   let hasConnected = false;
-  let serverVersion = 0;
+  let commandVersion = 0;
+  let appliedServerVersion = 0;
   let tokenRefreshPromise: Promise<void> | null = null;
   let resolveReady: (() => void) | null = null;
   let rejectReady: ((error: Error) => void) | null = null;
-  let roomReady = new Promise<void>((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
-  void roomReady.catch(() => {});
+  let roomReady = createRoomReady();
 
-  const resetRoomReady = () => {
-    roomReady = new Promise<void>((resolve, reject) => {
+  function createRoomReady() {
+    const promise = new Promise<void>((resolve, reject) => {
       resolveReady = resolve;
       rejectReady = reject;
     });
-    void roomReady.catch(() => {});
-  };
+    void promise.catch(() => {});
+    return promise;
+  }
 
-  const applySnapshot = (snapshot: ItinerarySocketSnapshot) => {
-    serverVersion = Number(snapshot.serverVersion) || serverVersion;
+  const replaceSnapshot = (snapshot: ItinerarySocketSnapshot, serverVersion?: number) => {
+    const nextVersion = Number(serverVersion ?? snapshot.serverVersion);
+
+    if (Number.isFinite(nextVersion)) {
+      commandVersion = nextVersion;
+      appliedServerVersion = nextVersion;
+    }
+
     onSnapshot?.(snapshot);
   };
 
-  const handleServerEvent = (eventName: ItinerarySocketEventName, event: ItineraryServerEvent) => {
-    const nextVersion = Number(event.serverVersion);
+  const syncTrip = (force = false) =>
+    new Promise<void>((resolve, reject) => {
+      if (!socket?.connected || disposed) {
+        reject(new Error("实时连接未就绪，请稍后重试"));
+        return;
+      }
 
-    if (!Number.isFinite(nextVersion) || nextVersion <= serverVersion) {
-      return;
-    }
-
-    if (nextVersion > serverVersion + 1) {
-      void syncTrip();
-      return;
-    }
-
-    serverVersion = nextVersion;
-    onEvent(eventName, event);
-  };
-
-  const syncTrip = async () => {
-    if (!socket?.connected || disposed) {
-      return;
-    }
-
-    onStatusChange?.("syncing");
-    socket.timeout(COMMAND_TIMEOUT_MS).emit(
-      "trip:sync",
-      { tripId: normalizedTripId, lastVersion: serverVersion },
-      (error: Error | null, ack?: SyncAck) => {
-        if (disposed) {
-          return;
-        }
-
-        if (error || !ack?.ok) {
-          onStatusChange?.("error");
-          onProtocolError?.(error?.message || getAckError(ack));
-          return;
-        }
-
-        if (ack.mode === "snapshot") {
-          applySnapshot(ack.snapshot);
-        } else {
-          for (const event of ack.events) {
-            const eventName = event.eventName || event.type;
-
-            if (eventName && SERVER_EVENT_NAMES.includes(eventName)) {
-              handleServerEvent(eventName, event);
-            }
+      onStatusChange?.("syncing");
+      socket.timeout(COMMAND_TIMEOUT_MS).emit(
+        "trip:sync",
+        { tripId: wireTripId, lastVersion: force ? -1 : appliedServerVersion },
+        (error: Error | null, ack?: SyncAck) => {
+          if (disposed) {
+            resolve();
+            return;
           }
-        }
 
-        onStatusChange?.("connected");
-      },
-    );
+          if (error || !ack?.ok) {
+            const syncError = new Error(error?.message || getAckError(ack));
+            onStatusChange?.("error");
+            onProtocolError?.(syncError.message);
+            reject(syncError);
+            return;
+          }
+
+          replaceSnapshot(ack.snapshot, ack.serverVersion);
+          onStatusChange?.("connected");
+          resolve();
+        },
+      );
+    });
+
+  const handleServerEvent = (eventName: ItinerarySocketEventName, frame: ItineraryRealtimeFrame) => {
+    if (!isFrameForTrip(frame, normalizedTripId)) {
+      return;
+    }
+
+    const nextServerVersion = Number(frame.version);
+
+    if (Number.isFinite(nextServerVersion)) {
+      appliedServerVersion = Math.max(appliedServerVersion, nextServerVersion);
+      commandVersion = Math.max(commandVersion, nextServerVersion);
+    }
+
+    onEvent(eventName, frame);
   };
 
-  const joinTrip = (shouldSync: boolean) => {
+  const handleVersionConflict = (frame: ItineraryRealtimeFrame) => {
+    if (!isFrameForTrip(frame, normalizedTripId)) {
+      return;
+    }
+
+    onVersionConflict?.(frame);
+    void syncTrip(true).catch(() => {});
+  };
+
+  const handlePersonalError = (frame: ItineraryRealtimeFrame) => {
+    if (isFrameForTrip(frame, normalizedTripId)) {
+      onPersonalError?.(frame);
+    }
+  };
+
+  const joinTrip = () => {
     if (!socket?.connected || disposed) {
       return;
     }
 
-    const lastKnownVersion = serverVersion;
     onStatusChange?.("connecting");
     socket.timeout(COMMAND_TIMEOUT_MS).emit(
       "trip:join",
-      { tripId: normalizedTripId },
+      { tripId: wireTripId },
       (error: Error | null, ack?: JoinAck) => {
         if (disposed) {
           return;
@@ -227,33 +244,87 @@ export const connectItineraryRealtime = ({
         }
 
         joined = true;
-        onSnapshot?.(ack.snapshot);
+        replaceSnapshot(ack.snapshot, ack.serverVersion);
         onOnlineMembersChange?.(ack.onlineMembers || []);
         resolveReady?.();
-
-        if (shouldSync) {
-          serverVersion = lastKnownVersion;
-          void syncTrip();
-        } else {
-          serverVersion = Number(ack.serverVersion ?? ack.snapshot.serverVersion) || 0;
-          onStatusChange?.("connected");
-        }
+        onStatusChange?.("connected");
       },
     );
   };
 
   const handleConnect = () => {
-    const shouldSync = hasConnected;
+    const isReconnect = hasConnected;
     hasConnected = true;
-    joinTrip(shouldSync);
+    joinTrip();
+
+    if (isReconnect) {
+      onStatusChange?.("syncing");
+    }
   };
 
-  const handleConnectError = (error: Error) => {
+  const handleDisconnect = () => {
+    if (!disposed) {
+      joined = false;
+      roomReady = createRoomReady();
+      onStatusChange?.("disconnected");
+    }
+  };
+
+  const attachSocketListeners = (target: Socket) => {
+    target.on("connect", handleConnect);
+    target.on("connect_error", handleConnectError);
+    target.on("disconnect", handleDisconnect);
+    target.io.on("reconnect_attempt", () => onStatusChange?.("connecting"));
+    target.on("trip:member_online", (data: { onlineMembers?: ItineraryOnlineMember[] }) => {
+      onOnlineMembersChange?.(data.onlineMembers || []);
+    });
+    target.on("trip:member_offline", (data: { onlineMembers?: ItineraryOnlineMember[] }) => {
+      onOnlineMembersChange?.(data.onlineMembers || []);
+    });
+    target.on("personal:version_conflict", handleVersionConflict);
+    target.on("personal:error", handlePersonalError);
+
+    for (const eventName of SERVER_EVENT_NAMES) {
+      target.on(eventName, (frame: ItineraryRealtimeFrame) => handleServerEvent(eventName, frame));
+    }
+  };
+
+  const detachSocketListeners = (target: Socket) => {
+    target.off("connect", handleConnect);
+    target.off("connect_error", handleConnectError);
+    target.off("disconnect", handleDisconnect);
+    target.io.off("reconnect_attempt");
+    target.off("trip:member_online");
+    target.off("trip:member_offline");
+    target.off("personal:version_conflict", handleVersionConflict);
+    target.off("personal:error", handlePersonalError);
+
+    for (const eventName of SERVER_EVENT_NAMES) {
+      target.off(eventName);
+    }
+  };
+
+  const replaceSocket = (token: string) => {
+    if (socket) {
+      detachSocketListeners(socket);
+      activeSockets.delete(socket);
+      socket.disconnect();
+    }
+
+    joined = false;
+    roomReady = createRoomReady();
+    socket = createSocket(token);
+    activeSockets.add(socket);
+    attachSocketListeners(socket);
+    socket.connect();
+  };
+
+  function handleConnectError(error: Error) {
     if (disposed) {
       return;
     }
 
-    if (error.message === "UNAUTHORIZED") {
+    if (isAuthorizationError(error.message)) {
       if (!tokenRefreshPromise) {
         tokenRefreshPromise = authTokenStorage
           .refreshAccessToken()
@@ -262,9 +333,8 @@ export const connectItineraryRealtime = ({
               throw new Error("登录状态已过期，请重新登录");
             }
 
-            if (socket && !disposed) {
-              socket.auth = { token };
-              socket.connect();
+            if (!disposed) {
+              replaceSocket(token);
             }
           })
           .catch((refreshError: unknown) => {
@@ -283,7 +353,7 @@ export const connectItineraryRealtime = ({
 
     onStatusChange?.("error");
     onProtocolError?.(error.message || "实时协作连接失败");
-  };
+  }
 
   const initialize = async () => {
     try {
@@ -294,35 +364,8 @@ export const connectItineraryRealtime = ({
         throw new Error("登录状态已过期，请重新登录");
       }
 
-      if (disposed) {
-        return;
-      }
-
-      socket = getSocket(token);
-      socket.on("connect", handleConnect);
-      socket.on("connect_error", handleConnectError);
-      socket.on("disconnect", () => {
-        if (!disposed) {
-          joined = false;
-          resetRoomReady();
-          onStatusChange?.("disconnected");
-        }
-      });
-      socket.on("trip:member_online", (data: { onlineMembers?: ItineraryOnlineMember[] }) => {
-        onOnlineMembersChange?.(data.onlineMembers || []);
-      });
-      socket.on("trip:member_offline", (data: { onlineMembers?: ItineraryOnlineMember[] }) => {
-        onOnlineMembersChange?.(data.onlineMembers || []);
-      });
-
-      for (const eventName of SERVER_EVENT_NAMES) {
-        socket.on(eventName, (event: ItineraryServerEvent) => handleServerEvent(eventName, event));
-      }
-
-      if (socket.connected) {
-        handleConnect();
-      } else {
-        socket.connect();
+      if (!disposed) {
+        replaceSocket(token);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "实时协作连接失败";
@@ -344,8 +387,8 @@ export const connectItineraryRealtime = ({
         eventName,
         {
           clientEventId: createClientEventId(),
-          tripId: normalizedTripId,
-          baseVersion: serverVersion,
+          tripId: wireTripId,
+          baseVersion: commandVersion,
           payload,
         },
         (error: Error | null, ack?: ItineraryCommandAck) => {
@@ -355,8 +398,22 @@ export const connectItineraryRealtime = ({
           }
 
           if (!ack?.ok) {
-            reject(new Error(getAckError(ack)));
+            const failedAck = ack || { ok: false, reason: "UNKNOWN_ERROR" };
+            onCommandRejected?.(failedAck);
+
+            if (
+              String(failedAck.reason) === "409" ||
+              String(failedAck.reason) === "ITINERARY_VERSION_CONFLICT"
+            ) {
+              void syncTrip(true).catch(() => {});
+            }
+
+            reject(new Error(getAckError(failedAck)));
             return;
+          }
+
+          if (Number.isFinite(Number(ack.serverVersion))) {
+            commandVersion = Math.max(commandVersion, Number(ack.serverVersion));
           }
 
           resolve(ack);
@@ -374,17 +431,13 @@ export const connectItineraryRealtime = ({
     }
 
     if (joined) {
-      socket.emit("trip:leave", { tripId: normalizedTripId });
+      socket.emit("trip:leave", { tripId: wireTripId });
     }
 
-    socket.off("connect", handleConnect);
-    socket.off("connect_error", handleConnectError);
-    socket.off("disconnect");
-    socket.off("trip:member_online");
-    socket.off("trip:member_offline");
-    for (const eventName of SERVER_EVENT_NAMES) {
-      socket.off(eventName);
-    }
+    detachSocketListeners(socket);
+    activeSockets.delete(socket);
+    socket.disconnect();
+    socket = null;
   };
 
   void initialize();
@@ -392,10 +445,11 @@ export const connectItineraryRealtime = ({
   return {
     addItem: (payload: AddItineraryItemCommand) => sendCommand("itinerary:item_add", payload),
     updateItem: (payload: UpdateItineraryItemCommand) => sendCommand("itinerary:item_update", payload),
-    deleteItem: (itemId: string | number) => sendCommand("itinerary:item_delete", { itemId: String(itemId) }),
+    deleteItem: (itemId: string | number) => sendCommand("itinerary:item_delete", { itemId }),
     moveItem: (payload: MoveItineraryItemCommand) => sendCommand("itinerary:item_move", payload),
     lock: () => sendCommand("itinerary:lock", {}),
     unlock: () => sendCommand("itinerary:unlock", {}),
+    sync: syncTrip,
     disconnect,
   };
 };

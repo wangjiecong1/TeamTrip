@@ -11,6 +11,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
+  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -44,8 +45,8 @@ import {
   ItineraryDayGroup,
   ItineraryItem,
   ItineraryRealtimeConnection,
+  ItineraryRealtimeFrame,
   ItineraryRealtimeStatus,
-  ItineraryServerEvent,
   ItinerarySocketEventName,
   ItineraryTimeline,
   teamsService,
@@ -218,31 +219,35 @@ const moveTimelineItem = (
   };
 };
 
-const buildItemFromSocketPayload = (
-  payload: Record<string, unknown>,
-  teamId: string,
-  existing?: ItineraryItem,
-): ItineraryItem | null => {
-  const itemId = getNumericItemId(payload.itemId ?? existing?.id);
-  const dayId = String(payload.dayId ?? existing?.itemDate ?? "");
-
-  if (itemId === null || !dayId) {
-    return null;
-  }
+const applyTimelineConflicts = (
+  timeline: ItineraryTimeline,
+  date: string,
+  conflicts: Array<{ itemId1: number; itemId2: number }>,
+): ItineraryTimeline => {
+  const conflictingItemIds = new Set(conflicts.flatMap((conflict) => [conflict.itemId1, conflict.itemId2]));
 
   return {
-    ...existing,
-    id: itemId,
-    teamId: Number(teamId),
-    itemDate: dayId,
-    placeName: String(payload.name ?? existing?.placeName ?? "未命名地点"),
-    address: payload.address === undefined ? existing?.address : String(payload.address || ""),
-    longitude: payload.lng === undefined ? existing?.longitude : Number(payload.lng),
-    latitude: payload.lat === undefined ? existing?.latitude : Number(payload.lat),
-    amapPoiId: payload.placeId === undefined ? existing?.amapPoiId : String(payload.placeId || ""),
-    startTime: payload.startTime === undefined ? existing?.startTime : String(payload.startTime || ""),
-    endTime: payload.endTime === undefined ? existing?.endTime : String(payload.endTime || ""),
-    note: payload.note === undefined ? existing?.note : String(payload.note || ""),
+    ...timeline,
+    days: timeline.days.map((day) =>
+      day.date === date
+        ? {
+            ...day,
+            items: day.items.map((item) => ({
+              ...item,
+              hasConflict: conflictingItemIds.has(item.id),
+              conflictWith: conflicts.flatMap((conflict) => {
+                if (conflict.itemId1 === item.id) {
+                  return [conflict.itemId2];
+                }
+                if (conflict.itemId2 === item.id) {
+                  return [conflict.itemId1];
+                }
+                return [];
+              }),
+            })),
+          }
+        : day,
+    ),
   };
 };
 
@@ -364,12 +369,12 @@ export function ItineraryPlanningPage() {
       );
     };
 
-    const handleRealtimeEvent = (eventName: ItinerarySocketEventName, event: ItineraryServerEvent) => {
-      const payload = event.payload as Record<string, unknown>;
+    const handleRealtimeEvent = (eventName: ItinerarySocketEventName, frame: ItineraryRealtimeFrame) => {
+      const data = frame.data as Record<string, unknown>;
 
       switch (eventName) {
         case "itinerary:item_added": {
-          const item = buildItemFromSocketPayload(payload, teamId);
+          const item = data.item as ItineraryItem | undefined;
 
           if (item) {
             updateTimeline((current) => upsertTimelineItem(current, item));
@@ -379,34 +384,45 @@ export function ItineraryPlanningPage() {
           break;
         }
         case "itinerary:item_updated": {
-          const itemId = getNumericItemId(payload.itemId);
-          const patch = (payload.patch || payload) as Record<string, unknown>;
+          const item = data.item as ItineraryItem | undefined;
 
-          if (itemId !== null) {
-            updateTimeline((current) => {
-              const existing = current.days.flatMap((day) => day.items).find((item) => item.id === itemId);
-              const item = buildItemFromSocketPayload({ ...patch, itemId }, teamId, existing);
-
-              return item ? upsertTimelineItem(current, item) : current;
-            });
+          if (item) {
+            updateTimeline((current) => upsertTimelineItem(current, item));
           }
           break;
         }
         case "itinerary:item_deleted": {
-          const itemId = getNumericItemId(payload.itemId);
+          const itemId = getNumericItemId(data.itemId);
 
           if (itemId !== null) {
             updateTimeline((current) => removeTimelineItem(current, itemId));
+            const softDeleteTtlSec = Number(data.softDeleteTtlSec);
+            messageApi.info(
+              Number.isFinite(softDeleteTtlSec)
+                ? `行程项已删除，${softDeleteTtlSec} 秒内可撤销`
+                : "行程项已删除",
+            );
+            void realtimeConnectionRef.current?.sync(true).catch(() => {});
           }
           break;
         }
         case "itinerary:item_moved": {
-          const itemId = getNumericItemId(payload.itemId);
-          const toDayId = String(payload.toDayId || "");
-          const toIndex = Number(payload.toIndex);
+          const date = String(data.date || "");
+          const orderedItemIds = Array.isArray(data.orderedItemIds)
+            ? data.orderedItemIds.map(getNumericItemId).filter((itemId): itemId is number => itemId !== null)
+            : [];
 
-          if (itemId !== null && toDayId && Number.isFinite(toIndex)) {
-            updateTimeline((current) => moveTimelineItem(current, itemId, toDayId, toIndex));
+          if (date && orderedItemIds.length) {
+            updateTimeline((current) => {
+              let nextTimeline = current;
+
+              orderedItemIds.forEach((itemId, index) => {
+                nextTimeline = moveTimelineItem(nextTimeline, itemId, date, index);
+              });
+
+              return nextTimeline;
+            });
+            void realtimeConnectionRef.current?.sync(true).catch(() => {});
           }
           break;
         }
@@ -416,8 +432,11 @@ export function ItineraryPlanningPage() {
             team: {
               ...current.team,
               locked: true,
-              lockedBy: getNumericItemId(payload.lockedBy) ?? undefined,
-              lockedAt: payload.lockedAt ? String(payload.lockedAt) : current.team.lockedAt,
+              lockedBy: getNumericItemId(data.lockedBy) ?? undefined,
+              finalStartDate: data.finalStartDate
+                ? String(data.finalStartDate)
+                : current.team.finalStartDate,
+              finalEndDate: data.finalEndDate ? String(data.finalEndDate) : current.team.finalEndDate,
             },
           }));
           queryClient.setQueryData(["itinerary", teamId, "detail"], (current: typeof detail) =>
@@ -433,6 +452,17 @@ export function ItineraryPlanningPage() {
             current ? { ...current, locked: false } : current,
           );
           break;
+        case "itinerary:conflict_detected": {
+          const date = String(data.date || "");
+          const conflicts = Array.isArray(data.conflicts)
+            ? (data.conflicts as Array<{ itemId1: number; itemId2: number }>)
+            : [];
+
+          if (date) {
+            updateTimeline((current) => applyTimelineConflicts(current, date, conflicts));
+          }
+          break;
+        }
         default:
           break;
       }
@@ -446,6 +476,24 @@ export function ItineraryPlanningPage() {
           queryClient.invalidateQueries({ queryKey: itineraryQueryKeys.timeline(teamId) }),
           queryClient.invalidateQueries({ queryKey: ["itinerary", teamId, "detail"] }),
         ]);
+      },
+      onVersionConflict: (frame) => {
+        messageApi.warning(frame.message || "行程已被其他成员更新，正在同步最新内容");
+      },
+      onPersonalError: (frame) => {
+        messageApi.error(frame.message || "行程操作失败");
+      },
+      onCommandRejected: (ack) => {
+        if (String(ack.reason) !== "423" && String(ack.reason) !== "ITINERARY_LOCKED") {
+          return;
+        }
+
+        queryClient.setQueryData<ItineraryTimeline>(itineraryQueryKeys.timeline(teamId), (current) =>
+          current ? { ...current, team: { ...current.team, locked: true } } : current,
+        );
+        queryClient.setQueryData(["itinerary", teamId, "detail"], (current: typeof detail) =>
+          current ? { ...current, locked: true } : current,
+        );
       },
       onProtocolError: (error) => messageApi.error(error),
       onStatusChange: setRealtimeStatus,
@@ -472,12 +520,13 @@ export function ItineraryPlanningPage() {
       }
 
       return connection.addItem({
-        dayId: activeDay.date,
-        name: place.name,
+        itemDate: activeDay.date,
+        placeName: place.name,
         address: place.address,
-        lng: place.location.lng,
-        lat: place.location.lat,
-        placeId: place.id,
+        longitude: place.location.lng,
+        latitude: place.location.lat,
+        amapPoiId: place.id,
+        poiType: place.type,
       });
     },
     onSuccess: () => {
@@ -502,8 +551,8 @@ export function ItineraryPlanningPage() {
       }
 
       return connection.addItem({
-        dayId: activeDay.date,
-        name: values.placeName.trim(),
+        itemDate: activeDay.date,
+        placeName: values.placeName.trim(),
         note: trimmedNote || "",
       });
     },
@@ -521,11 +570,13 @@ export function ItineraryPlanningPage() {
       fromDayId,
       toDayId,
       toIndex,
+      orderedItemIds,
     }: {
       itemId: number;
       fromDayId: string;
       toDayId: string;
       toIndex: number;
+      orderedItemIds: number[];
     }) => {
       const connection = realtimeConnectionRef.current;
 
@@ -534,10 +585,11 @@ export function ItineraryPlanningPage() {
       }
 
       return connection.moveItem({
-        itemId: String(itemId),
+        itemId,
         fromDayId,
         toDayId,
         toIndex,
+        orderedItemIds,
       });
     },
     onError: async (error) => {
@@ -601,11 +653,14 @@ export function ItineraryPlanningPage() {
       return;
     }
 
+    const reorderedItems = arrayMove(dragDay.items, oldIndex, newIndex);
+
     reorderMutation.mutate({
       itemId: Number(active.id),
       fromDayId: dragDay.date,
       toDayId: dragDay.date,
       toIndex: newIndex,
+      orderedItemIds: reorderedItems.map((item) => item.id),
     });
   };
 
