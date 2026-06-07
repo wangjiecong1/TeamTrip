@@ -212,36 +212,33 @@ const getNumericItemId = (itemId: unknown) => {
   return Number.isFinite(numericItemId) ? numericItemId : null;
 };
 
-const moveTimelineItem = (
+const reorderTimelineDay = (
   timeline: ItineraryTimeline,
-  itemId: number,
-  toDayId: string,
-  toIndex: number,
+  date: string,
+  orderedItemIds: number[],
 ): ItineraryTimeline => {
-  const movedItem = timeline.days.flatMap((day) => day.items).find((item) => item.id === itemId);
-
-  if (!movedItem) {
-    return timeline;
-  }
+  const orderedItemIdSet = new Set(orderedItemIds);
 
   return {
     ...timeline,
     days: timeline.days.map((day) => {
-      const itemsWithoutMoved = day.items.filter((item) => item.id !== itemId);
-
-      if (day.date !== toDayId) {
-        return { ...day, items: itemsWithoutMoved };
+      if (day.date !== date) {
+        return day;
       }
 
-      const nextItems = itemsWithoutMoved.slice();
-      nextItems.splice(Math.max(0, Math.min(toIndex, nextItems.length)), 0, {
-        ...movedItem,
-        itemDate: toDayId,
+      const itemsById = new Map(day.items.map((item) => [item.id, item]));
+      const orderedItems = orderedItemIds.flatMap((itemId) => {
+        const item = itemsById.get(itemId);
+        return item ? [item] : [];
       });
+      const remainingItems = day.items.filter((item) => !orderedItemIdSet.has(item.id));
 
       return {
         ...day,
-        items: nextItems.map((item, index) => ({ ...item, orderNum: index })),
+        items: [...orderedItems, ...remainingItems].map((item, index) => ({
+          ...item,
+          orderNum: index,
+        })),
       };
     }),
   };
@@ -441,16 +438,7 @@ export function ItineraryPlanningPage() {
             : [];
 
           if (date && orderedItemIds.length) {
-            updateTimeline((current) => {
-              let nextTimeline = current;
-
-              orderedItemIds.forEach((itemId, index) => {
-                nextTimeline = moveTimelineItem(nextTimeline, itemId, date, index);
-              });
-
-              return nextTimeline;
-            });
-            void realtimeConnectionRef.current?.sync(true).catch(() => {});
+            updateTimeline((current) => reorderTimelineDay(current, date, orderedItemIds));
           }
           break;
         }
@@ -682,13 +670,18 @@ export function ItineraryPlanningPage() {
     }
 
     const reorderedItems = arrayMove(dragDay.items, oldIndex, newIndex);
+    const orderedItemIds = reorderedItems.map((item) => item.id);
+
+    queryClient.setQueryData<ItineraryTimeline>(itineraryQueryKeys.timeline(teamId), (current) =>
+      current ? reorderTimelineDay(current, dragDay.date, orderedItemIds) : current,
+    );
 
     reorderMutation.mutate({
       itemId: Number(active.id),
       fromDayId: dragDay.date,
       toDayId: dragDay.date,
       toIndex: newIndex,
-      orderedItemIds: reorderedItems.map((item) => item.id),
+      orderedItemIds,
     });
   };
 
