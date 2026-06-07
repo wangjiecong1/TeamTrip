@@ -143,6 +143,34 @@ const buildTimelineDays = (
 const sortItineraryItems = (items: ItineraryItem[]) =>
   items.slice().sort((left, right) => (left.orderNum ?? 0) - (right.orderNum ?? 0));
 
+const formatDateArray = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return typeof value === "string" ? value : undefined;
+  }
+
+  const [year, month, day, hour, minute, second] = value.map(Number);
+  const pad = (part: number) => String(part).padStart(2, "0");
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return undefined;
+  }
+
+  const date = `${year}-${pad(month)}-${pad(day)}`;
+
+  if (!Number.isFinite(hour)) {
+    return date;
+  }
+
+  return `${date} ${pad(hour)}:${pad(Number.isFinite(minute) ? minute : 0)}:${pad(Number.isFinite(second) ? second : 0)}`;
+};
+
+const normalizeRealtimeItem = (item: ItineraryItem) => ({
+  ...item,
+  itemDate: formatDateArray(item.itemDate) || item.itemDate,
+  createTime: formatDateArray(item.createTime) || item.createTime,
+  updateTime: formatDateArray(item.updateTime) || item.updateTime,
+});
+
 const upsertTimelineItem = (timeline: ItineraryTimeline, item: ItineraryItem): ItineraryTimeline => {
   const existingItem = timeline.days.flatMap((day) => day.items).find((current) => current.id === item.id);
 
@@ -377,7 +405,7 @@ export function ItineraryPlanningPage() {
           const item = data.item as ItineraryItem | undefined;
 
           if (item) {
-            updateTimeline((current) => upsertTimelineItem(current, item));
+            updateTimeline((current) => upsertTimelineItem(current, normalizeRealtimeItem(item)));
           } else {
             void queryClient.invalidateQueries({ queryKey: itineraryQueryKeys.timeline(teamId) });
           }
@@ -387,7 +415,7 @@ export function ItineraryPlanningPage() {
           const item = data.item as ItineraryItem | undefined;
 
           if (item) {
-            updateTimeline((current) => upsertTimelineItem(current, item));
+            updateTimeline((current) => upsertTimelineItem(current, normalizeRealtimeItem(item)));
           }
           break;
         }
