@@ -78,6 +78,11 @@ export type ReorderItineraryRequest = {
   orderedItemIds: number[];
 };
 
+export type AmapPoiPhoto = {
+  url?: string;
+  title?: string;
+};
+
 export type AmapPoiResult = {
   id: string;
   name: string;
@@ -85,6 +90,7 @@ export type AmapPoiResult = {
   type?: string;
   longitude: number;
   latitude: number;
+  photos?: Array<string | AmapPoiPhoto>;
 };
 
 export type ItineraryOnlineMember = {

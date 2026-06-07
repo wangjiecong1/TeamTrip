@@ -108,6 +108,28 @@ const getMapErrorMessage = (error: unknown) => {
   return "请检查高德 Key、安全密钥和域名白名单";
 };
 
+const getPoiPhotoUrl = (photos: unknown) => {
+  if (!Array.isArray(photos)) {
+    return undefined;
+  }
+
+  for (const photo of photos) {
+    if (typeof photo === "string" && photo.trim()) {
+      return photo.trim();
+    }
+
+    if (photo && typeof photo === "object") {
+      const url = (photo as { url?: unknown }).url;
+
+      if (typeof url === "string" && url.trim()) {
+        return url.trim();
+      }
+    }
+  }
+
+  return undefined;
+};
+
 export function ItineraryAmap({
   destination,
   searchRequest,
@@ -249,6 +271,7 @@ export function ItineraryAmap({
               lng: position[0],
               lat: position[1],
             },
+            photoUrl: getPoiPhotoUrl(poi.photos),
           }];
         });
 
