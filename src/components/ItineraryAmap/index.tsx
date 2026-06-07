@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import AMapLoader from "@amap/amap-jsapi-loader";
 import { AlertCircle, Clock3, ExternalLink, LoaderCircle, MapPin, Phone, Star, WalletCards, X } from "lucide-react";
-import placeFallbackImage from "../../assets/my-teams/my-teams-card-cover-city.svg";
-import { itineraryService } from "../services";
+import placeFallbackImage from "../../../assets/my-teams/my-teams-card-cover-city.svg";
+import { itineraryService } from "../../services";
 
 type ItineraryAmapProps = {
   destination: string;

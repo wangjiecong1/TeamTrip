@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import { Layout } from "antd";
 import { CalendarCheck, ChevronDown, ClipboardCheck, Grid2X2, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import avatarFallback from "../../assets/common/app-header-user-avatar.svg";
-import { BrandMark } from "./BrandMark";
-import { StatusTag, StatusTagVariant } from "./StatusTag";
-import { UserAccountMenu } from "./UserAccountMenu";
-import "./TeamSidebar.less";
+import avatarFallback from "../../../assets/common/app-header-user-avatar.svg";
+import { BrandMark } from "../BrandMark";
+import { StatusTag, StatusTagVariant } from "../StatusTag";
+import { UserAccountMenu } from "../UserAccountMenu";
+import "./index.less";
 
 const { Sider } = Layout;
 

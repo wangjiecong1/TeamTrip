@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Dropdown } from "antd";
 import type { DropdownProps, MenuProps } from "antd";
 import { LogOut, Settings } from "lucide-react";
-import { PersonalSettingsDrawer } from "./PersonalSettingsDrawer";
-import "./UserAccountMenu.less";
+import { PersonalSettingsDrawer } from "../PersonalSettingsDrawer";
+import "./index.less";
 
 type UserAccountMenuProps = {
   children: React.ReactElement;

@@ -2,10 +2,10 @@ import React from "react";
 import { Avatar, Button } from "antd";
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, Plus, UserPlus } from "lucide-react";
-import logoPin from "../../assets/common/app-header-logo-pin.svg";
-import avatar from "../../assets/common/app-header-user-avatar.svg";
-import { UserAccountMenu } from "./UserAccountMenu";
-import "./AppHeader.less";
+import logoPin from "../../../assets/common/app-header-logo-pin.svg";
+import avatar from "../../../assets/common/app-header-user-avatar.svg";
+import { UserAccountMenu } from "../UserAccountMenu";
+import "./index.less";
 
 type AppHeaderAction = {
   label: string;

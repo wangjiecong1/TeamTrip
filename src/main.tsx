@@ -6,14 +6,20 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
-import App from "./App.jsx";
+import App from "./App";
 import { queryClient } from "./services/queryClient";
 import { teamTripTheme } from "./theme/antdTheme";
 import "./styles.css";
 
 dayjs.locale("zh-cn");
 
-createRoot(document.getElementById("root")).render(
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+createRoot(rootElement).render(
   <ConfigProvider locale={zhCN} theme={teamTripTheme}>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

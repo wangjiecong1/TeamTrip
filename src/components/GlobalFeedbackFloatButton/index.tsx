@@ -2,8 +2,8 @@ import React, { useMemo, useState } from "react";
 import { FloatButton, Form, Input, message, Modal, Segmented } from "antd";
 import { Headphones, MessageCircle } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import { authTokenStorage, FeedbackType, feedbacksService } from "../services";
-import "./GlobalFeedbackFloatButton.less";
+import { authTokenStorage, FeedbackType, feedbacksService } from "../../services";
+import "./index.less";
 
 type FeedbackFormValues = {
   feedbackType: FeedbackType;

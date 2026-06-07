@@ -7,7 +7,7 @@ import { FinalItineraryPage } from "./pages/FinalItinerary";
 import { ItineraryPlanningPage } from "./pages/ItineraryPlanning";
 import { TestResultPage } from "./pages/TestResult";
 import { TravelBtiTestPage } from "./pages/TravelBtiTest";
-import { RequireAuth } from "./components/RequireAuth/RequireAuth";
+import { RequireAuth } from "./components/RequireAuth";
 import { GlobalFeedbackFloatButton } from "./components/GlobalFeedbackFloatButton";
 
 export default function App() {

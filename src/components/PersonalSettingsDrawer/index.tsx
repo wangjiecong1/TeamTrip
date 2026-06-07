@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Avatar, Button, Drawer, Form, Input, Skeleton, Tabs, message } from "antd";
 import { Lock, Mail, Phone, ShieldCheck, User } from "lucide-react";
-import { ApiError, authService, UserResponse } from "../services";
-import { StatusTag, StatusTagVariant } from "./StatusTag";
-import defaultAvatar from "../../assets/common/app-header-user-avatar.svg";
-import "./PersonalSettingsDrawer.less";
+import { ApiError, authService, UserResponse } from "../../services";
+import { StatusTag, StatusTagVariant } from "../StatusTag";
+import defaultAvatar from "../../../assets/common/app-header-user-avatar.svg";
+import "./index.less";
 
 type PersonalSettingsDrawerProps = {
   open: boolean;
