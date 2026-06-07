@@ -1,328 +1,927 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Calendar, DatePicker, Layout, message, Modal, Popover, Tooltip } from "antd";
+import type { Locale as AntdLocale } from "antd/es/locale";
+import zhCN from "antd/locale/zh_CN";
+import dayjs, { Dayjs } from "dayjs";
+import { useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
-  CalendarCheck,
+  AlertCircle,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
+  ChevronLeft,
   ChevronRight,
-  ClipboardCheck,
+  ChevronsLeft,
+  ChevronsRight,
   Copy,
-  Edit3,
-  Grid2X2,
   Info,
-  MapPin,
-  MessageSquareText,
+  LockKeyhole,
   Route,
-  Settings,
   Sparkles,
-  Users,
+  UnlockKeyhole,
 } from "lucide-react";
-import { BrandMark } from "../../components/BrandMark";
+import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
+import { TeamSidebar } from "../../components/TeamSidebar";
+import {
+  ApiError,
+  authService,
+  authTokenStorage,
+  DateRange,
+  TeamCalendarDay,
+  TeamDetailResponse,
+  TeamMemberResponse,
+  teamsService,
+} from "../../services";
 import avatar from "../../../assets/common/app-header-user-avatar.svg";
 import teamCover from "../../../assets/login-register/login-register-hero-approved.webp";
+import { TeamWorkspaceSkeleton } from "./Skeleton";
 import "./index.less";
 
-const navItems = [
-  { label: "团队工作台", icon: Grid2X2, active: true, path: "/teams/hangzhou-2025/workspace" },
-  { label: "行程规划", icon: CalendarCheck, path: "/teams/hangzhou-2025/itinerary" },
-  { label: "最终行程单", icon: ClipboardCheck, externalPath: "/final-itinerary/TT-HZ-1024" },
-  { label: "团队设置", icon: Settings },
+const { RangePicker } = DatePicker;
+const { Content } = Layout;
+const datePickerLocale = (zhCN as AntdLocale).DatePicker;
+type AvailabilityRangeValue = [Dayjs | null, Dayjs | null] | null;
+type CalendarCellInfo = {
+  originNode: React.ReactElement;
+  type: string;
+};
+
+const queryKey = {
+  detail: (teamId: string) => ["wb", teamId, "detail"] as const,
+  members: (teamId: string) => ["wb", teamId, "members"] as const,
+  portrait: (teamId: string) => ["wb", teamId, "portrait"] as const,
+  preparation: (teamId: string) => ["wb", teamId, "preparation"] as const,
+  calendar: (teamId: string, yearMonth?: string) =>
+    yearMonth ? (["wb", teamId, "cal", yearMonth] as const) : (["wb", teamId, "cal"] as const),
+};
+
+const getCurrentYearMonth = () => new Date().toISOString().slice(0, 7);
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError || error instanceof Error) {
+    return error.message;
+  }
+
+  return "请求失败，请稍后重试";
+};
+
+const getStatusVariant = (status = ""): StatusTagVariant => {
+  if (status.includes("过期") || status.includes("归档")) {
+    return "expired";
+  }
+
+  if (status.includes("完成") || status.includes("填写")) {
+    return "completed";
+  }
+
+  if (status.includes("锁定")) {
+    return "locked";
+  }
+
+  if (status.includes("待")) {
+    return "pending";
+  }
+
+  if (status.includes("进行")) {
+    return "active";
+  }
+
+  if (status.includes("准备") || status.includes("规划")) {
+    return "planning";
+  }
+
+  return "neutral";
+};
+
+const getStoredUserId = () => {
+  try {
+    const user = JSON.parse(window.localStorage.getItem("teamtrip-auth-user") || "null") as { id?: string | number; userId?: string | number };
+
+    return user?.id ?? user?.userId;
+  } catch {
+    return undefined;
+  }
+};
+
+type KeywordTone = "photo" | "environment" | "pace" | "social" | "food" | "exploration" | "general";
+
+const keywordGroups: Array<{
+  tone: KeywordTone;
+  source: string;
+  terms: string[];
+}> = [
+  { tone: "photo", source: "拍照偏好", terms: ["出片", "拍照", "打卡", "摄影", "镜头"] },
+  { tone: "social", source: "社交偏好", terms: ["热闹", "社交", "结伴", "聚会", "互动"] },
+  { tone: "pace", source: "行程节奏", terms: ["松弛", "轻松", "随意", "慢游", "留白", "紧凑", "节奏"] },
+  { tone: "environment", source: "环境偏好", terms: ["自然", "城市", "安静", "户外", "室内", "环境"] },
+  { tone: "food", source: "吃喝偏好", terms: ["美食", "吃", "餐厅", "咖啡", "口味"] },
+  { tone: "exploration", source: "探索偏好", terms: ["探索", "冒险", "小众", "经典", "自由"] },
 ];
 
-const readinessItems = [
-  { title: "Trip-BTI 测试", desc: "已完成 · 供参考", status: "已完成", icon: CheckCircle2 },
-  { title: "可出行时间", desc: "已填写 2 段时间", status: "已填写", icon: CalendarDays },
-  { title: "我的备注", desc: "希望节奏轻松一点，晚上不要安排太满~", icon: MessageSquareText },
-];
+const getKeywordMeta = (keyword: string) =>
+  keywordGroups.find((group) => group.terms.some((term) => keyword.includes(term))) || {
+    tone: "general" as const,
+    source: "综合偏好",
+  };
 
-const aiCards = [
-  { icon: Users, title: "本团整体偏向", text: "人文、美食、轻松节奏" },
-  { icon: MessageSquareText, title: "成员备注提炼", text: "偏好慢游、喜欢拍照，有人想吃本地菜，有人不太能吃辣。" },
-  { icon: Info, title: "出行建议", text: "安排城市漫游 + 展馆 + 特色餐厅；每天保留一段自由活动时间。" },
-  { icon: Route, title: "主要分歧", text: "体力强度分歧较大，预算舒适度有中等差异。" },
-  { icon: CheckCircle2, title: "建议安排", text: "1 天轻松慢游，1 天重点打卡，餐饮保留不同选择。" },
-];
+const getTeamStyleTitle = (keywords: string[]) => {
+  const prioritizedTones: KeywordTone[] = ["social", "photo", "pace", "environment", "exploration", "food", "general"];
+  const selectedKeywords = prioritizedTones
+    .map((tone) => keywords.find((keyword) => getKeywordMeta(keyword).tone === tone))
+    .filter((keyword): keyword is string => Boolean(keyword))
+    .slice(0, 2);
 
-const preferenceRows = [
-  { label: "游览方式", value: 64 },
-  { label: "自然景观", value: 78 },
-  { label: "人文历史", value: 88 },
-  { label: "美食探索", value: 88 },
-  { label: "购物逛街", value: 38 },
-  { label: "拍照打卡", value: 78 },
-  { label: "夜生活体验", value: 62 },
-  { label: "冒险挑战", value: 30 },
-];
+  return selectedKeywords.length ? `${selectedKeywords.join("")}型` : "共同探索型";
+};
 
-const keywords = ["慢游", "拍照", "本地美食", "咖啡馆", "展览", "轻松节奏", "自由时间", "不太能吃辣", "博物馆", "特色小店"];
+const formatRange = (range?: DateRange | null) => {
+  if (!range) {
+    return "待锁定";
+  }
 
-const calendarDays = [
-  { day: "29", tone: "muted" },
-  { day: "30", tone: "muted" },
-  { day: "1", tone: "all" },
-  { day: "2", tone: "all" },
-  { day: "3", tone: "all" },
-  { day: "4", tone: "most" },
-  { day: "5", tone: "most" },
-  { day: "6", tone: "most" },
-  { day: "7", tone: "" },
-  { day: "8", tone: "" },
-  { day: "9", tone: "few" },
-  { day: "10", tone: "" },
-  { day: "11", tone: "few" },
-  { day: "12", tone: "few" },
-];
+  const formatDate = (date: string) => date.slice(5).replace("-", ".");
+  const start = formatDate(range.startDate);
+  const end = formatDate(range.endDate);
 
-const workspaceInviteCode = "TT-HZ-1024";
+  return range.startDate === range.endDate ? start : `${start} - ${end}`;
+};
+
+const getRangePickerValue = (range?: DateRange | null): AvailabilityRangeValue => {
+  if (!range) {
+    return null;
+  }
+
+  return [dayjs(range.startDate), dayjs(range.endDate)];
+};
+
+const isDateInRange = (date: Dayjs, range?: DateRange | null) => {
+  if (!range) {
+    return false;
+  }
+
+  return !date.isBefore(dayjs(range.startDate), "day") && !date.isAfter(dayjs(range.endDate), "day");
+};
+
+const getCalendarLevelClassName = (day?: TeamCalendarDay) => {
+  if (!day?.level) {
+    return "unknown";
+  }
+
+  return day.level === "some" ? "few" : day.level;
+};
+
+const getCalendarLevelText = (day?: TeamCalendarDay) => {
+  if (!day) {
+    return "暂无提交";
+  }
+
+  if (day.level === "all") {
+    return "全员可出行";
+  }
+
+  if (day.level === "most") {
+    return "多数可出行";
+  }
+
+  if (day.level === "some") {
+    return "部分可出行";
+  }
+
+  if (day.level === "none") {
+    return "无人可出行";
+  }
+
+  return "暂无提交";
+};
+
+const clampPreferenceScore = (score?: number) => Math.min(1, Math.max(0, score ?? 0.5));
+const preferenceSideSegments = Array.from({ length: 4 });
 
 export function TeamWorkspacePage() {
   const navigate = useNavigate();
-  const [toast, setToast] = useState("");
+  const queryClient = useQueryClient();
+  const [messageApi, contextHolder] = message.useMessage();
+  const { teamId = "" } = useParams();
+  const [yearMonth, setYearMonth] = useState(getCurrentYearMonth);
+  const [availabilityRange, setAvailabilityRange] = useState<AvailabilityRangeValue>(null);
+  const [finalDateRangeValue, setFinalDateRangeValue] = useState<AvailabilityRangeValue>(null);
+  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
+  const [finalDateModalOpen, setFinalDateModalOpen] = useState(false);
 
-  const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 1800);
-  };
+  const detailQuery = useQuery({
+    queryKey: queryKey.detail(teamId),
+    queryFn: () => teamsService.getDetail(teamId),
+    enabled: Boolean(teamId),
+    staleTime: 30_000,
+  });
+
+  const membersQuery = useQuery({
+    queryKey: queryKey.members(teamId),
+    queryFn: () => teamsService.getMembers(teamId),
+    enabled: Boolean(teamId),
+    staleTime: 30_000,
+  });
+
+  const portraitQuery = useQuery({
+    queryKey: queryKey.portrait(teamId),
+    queryFn: () => teamsService.getPortrait(teamId),
+    enabled: Boolean(teamId),
+    staleTime: 1_800_000,
+  });
+
+  const preparationQuery = useQuery({
+    queryKey: queryKey.preparation(teamId),
+    queryFn: () => teamsService.getPreparation(teamId),
+    enabled: Boolean(teamId),
+  });
+
+  const calendarQuery = useQuery({
+    queryKey: queryKey.calendar(teamId, yearMonth),
+    queryFn: () => teamsService.getCalendar(teamId, yearMonth),
+    enabled: Boolean(teamId),
+  });
+
+  const detail = detailQuery.data;
+  const members = membersQuery.data?.items || [];
+  const portrait = portraitQuery.data;
+  const calendar = calendarQuery.data;
+  const preparation = preparationQuery.data;
+  const isTripProfileCompleted = Boolean(preparation?.tripProfileCompleted);
+  const storedUserId = getStoredUserId();
+  const currentMember =
+    members.find((member) => String(member.userId) === String(storedUserId)) ||
+    (detail?.myRole === "owner" ? members.find((member) => member.role === "owner") : undefined);
+  const coverImage = detail?.cityThumbnail || detail?.avatar || teamCover;
+  const ownerName = detail?.ownerNickname || members.find((member) => member.role === "owner")?.nickname || "团队创建者";
+  const tripProfilePendingMembers = members.filter((member) => !member.tripProfileCompleted);
+  const availabilityPendingMembers = members.filter((member) => !member.availabilitySubmitted);
+  const statusText = detail?.statusTag || detail?.teamStatusText || (detail?.dateLocked ? "已锁定日期" : "行程准备中");
+  const finalDateRange = useMemo<DateRange | null>(
+    () =>
+      calendar?.finalDates?.[0] ||
+      (detail?.finalStartDate && detail?.finalEndDate ? { startDate: detail.finalStartDate, endDate: detail.finalEndDate } : null),
+    [calendar?.finalDates, detail?.finalEndDate, detail?.finalStartDate],
+  );
+  const totalMemberCount = calendar?.totalMembers ?? detail?.totalMemberCount ?? members.length;
+  const hasFinalTravelDates = Boolean(detail?.dateLocked && finalDateRange);
+  const lockCandidate = useMemo<DateRange | null>(
+    () => calendar?.goldenDates?.[0] || preparation?.myDateRanges?.[0] || null,
+    [calendar?.goldenDates, preparation?.myDateRanges],
+  );
+  const isInitialPageLoading =
+    (detailQuery.isLoading && !detailQuery.data) ||
+    (membersQuery.isLoading && !membersQuery.data) ||
+    (portraitQuery.isLoading && !portraitQuery.data) ||
+    (preparationQuery.isLoading && !preparationQuery.data);
+  const pageError = [detailQuery.error, membersQuery.error, portraitQuery.error, preparationQuery.error, calendarQuery.error].find(Boolean);
+
+  const riskyDimensions = useMemo(
+    () => portrait?.dimensions?.filter((dimension) => dimension.riskLevel === "high" || dimension.riskLevel === "medium") || [],
+    [portrait?.dimensions],
+  );
+  const portraitKeywords = portrait?.keywords?.length ? portrait.keywords : [];
+  const teamStyleTitle = getTeamStyleTitle(portraitKeywords);
+  const calendarValue = useMemo(() => dayjs(`${yearMonth}-01`), [yearMonth]);
+  const calendarDayByDate = useMemo(() => new Map((calendar?.days || []).map((day) => [day.date, day])), [calendar?.days]);
+  const selectedRanges = useMemo<DateRange[]>(() => {
+    const [startDate, endDate] = availabilityRange || [];
+
+    if (!startDate || !endDate) {
+      return [];
+    }
+
+    return [{ startDate: startDate.format("YYYY-MM-DD"), endDate: endDate.format("YYYY-MM-DD") }];
+  }, [availabilityRange]);
+
+  useEffect(() => {
+    const firstRange = preparation?.myDateRanges?.[0];
+
+    if (firstRange) {
+      setAvailabilityRange([dayjs(firstRange.startDate), dayjs(firstRange.endDate)]);
+    }
+  }, [preparation]);
+
+  useEffect(() => {
+    if (!finalDateModalOpen) {
+      setFinalDateRangeValue(getRangePickerValue(finalDateRange || lockCandidate));
+    }
+  }, [finalDateModalOpen, finalDateRange, lockCandidate]);
+
+  useEffect(() => {
+    const status = pageError instanceof ApiError ? pageError.status : undefined;
+
+    if (status === 403) {
+      messageApi.warning("你不在该团队中");
+      navigate("/teams", { replace: true });
+    }
+  }, [messageApi, navigate, pageError]);
+
+  const invalidateCalendarScope = () => queryClient.invalidateQueries({ queryKey: queryKey.calendar(teamId) });
+
+  const saveAvailabilityMutation = useMutation({
+    mutationFn: (dateRanges: DateRange[]) => teamsService.saveAvailability(teamId, { dateRanges }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKey.preparation(teamId) }),
+        invalidateCalendarScope(),
+        queryClient.invalidateQueries({ queryKey: queryKey.members(teamId) }),
+      ]);
+      messageApi.success("可出行时间已保存");
+      setAvailabilityModalOpen(false);
+    },
+    onError: (error) => messageApi.error(getErrorMessage(error)),
+  });
+
+  const lockDatesMutation = useMutation({
+    mutationFn: (dateRange: DateRange) => teamsService.lockDates(teamId, dateRange),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKey.detail(teamId) }),
+        invalidateCalendarScope(),
+        queryClient.invalidateQueries({ queryKey: queryKey.portrait(teamId) }),
+      ]);
+      messageApi.success("已锁定行程日期");
+      setFinalDateModalOpen(false);
+    },
+    onError: (error) => messageApi.error(getErrorMessage(error)),
+  });
+
+  const unlockDatesMutation = useMutation({
+    mutationFn: () => teamsService.unlockDates(teamId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKey.detail(teamId) }),
+        invalidateCalendarScope(),
+        queryClient.invalidateQueries({ queryKey: queryKey.portrait(teamId) }),
+      ]);
+      messageApi.success("已解锁行程日期");
+    },
+    onError: (error) => messageApi.error(getErrorMessage(error)),
+  });
 
   const copyInviteCode = async () => {
+    const inviteCode = detail?.inviteCode || String(detail?.teamId || teamId);
+
     try {
-      await navigator.clipboard?.writeText(workspaceInviteCode);
-      showToast("邀请码已复制");
+      await navigator.clipboard?.writeText(inviteCode);
+      messageApi.success("邀请码已复制");
     } catch {
-      showToast(`邀请码：${workspaceInviteCode}`);
+      messageApi.info(`邀请码：${inviteCode}`);
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      authTokenStorage.clear();
+      window.localStorage.removeItem("teamtrip-auth-user");
+      navigate("/login");
+    } catch {
+      messageApi.error("退出登录失败，请稍后重试");
+    }
+  };
+
+  const isOwner = detail?.myRole === "owner";
+  const isFinalDateMutating = lockDatesMutation.isPending || unlockDatesMutation.isPending;
+  const canOpenFinalDateModal = Boolean(isOwner && detail?.canLockDates) && !isFinalDateMutating;
+  const canUnlockFinalDate = Boolean(isOwner && detail?.canUnlockDates) && !isFinalDateMutating;
+
+  const openFinalDateModal = () => {
+    setFinalDateRangeValue(getRangePickerValue(finalDateRange || lockCandidate));
+    setFinalDateModalOpen(true);
+  };
+
+  const updateFinalDateRange = (dates: AvailabilityRangeValue) => {
+    setFinalDateRangeValue(dates);
+
+    if (dates?.[0]) {
+      setYearMonth(dates[0].format("YYYY-MM"));
+    }
+  };
+
+  const submitFinalDateRange = () => {
+    const [startDate, endDate] = finalDateRangeValue || [];
+
+    if (!startDate || !endDate) {
+      messageApi.warning("请选择完整的最终出行日期");
+      return;
+    }
+
+    lockDatesMutation.mutate({
+      startDate: startDate.format("YYYY-MM-DD"),
+      endDate: endDate.format("YYYY-MM-DD"),
+    });
+  };
+  const updateAvailabilityRange = (dates: AvailabilityRangeValue) => {
+    setAvailabilityRange(dates);
+
+    if (dates?.[0]) {
+      setYearMonth(dates[0].format("YYYY-MM"));
+    }
+
+    const [startDate, endDate] = dates || [];
+
+    if (startDate && endDate && !detail?.dateLocked) {
+      saveAvailabilityMutation.mutate([
+        {
+          startDate: startDate.format("YYYY-MM-DD"),
+          endDate: endDate.format("YYYY-MM-DD"),
+        },
+      ]);
+    }
+  };
+
+  const changeCalendarMonth = (date: Dayjs) => {
+    setYearMonth(date.format("YYYY-MM"));
+  };
+
+  const renderTeamCalendarCell = (currentDate: Dayjs, info: CalendarCellInfo) => {
+    if (info.type !== "date") {
+      return info.originNode;
+    }
+
+    const date = currentDate.format("YYYY-MM-DD");
+    const isCurrentMonth = currentDate.format("YYYY-MM") === yearMonth;
+    const day = calendarDayByDate.get(date);
+    const levelClassName = getCalendarLevelClassName(day);
+
+    return (
+      <div
+        className={`team-availability-cell is-${levelClassName} ${isCurrentMonth ? "" : "is-outside"}`}
+        title={`${date} · ${getCalendarLevelText(day)} · ${day?.availableCount ?? 0} 人可出行`}
+      >
+        <span>{currentDate.date()}</span>
+        <i aria-hidden="true" />
+      </div>
+    );
+  };
+
+  const renderPendingMemberTooltip = (label: string, pendingMembers: TeamMemberResponse[], content: React.ReactNode) => {
+    if (!pendingMembers.length) {
+      return content;
+    }
+
+    return (
+      <Popover
+        classNames={{ container: "workspace-pending-popover__container" }}
+        placement="bottom"
+        content={
+          <div className="workspace-pending-popover__members">
+            {pendingMembers.map((member) => (
+              <span key={member.userId}>{member.nickname}</span>
+            ))}
+          </div>
+        }
+        title={label}
+        trigger="hover"
+      >
+        <span className="workspace-stat-tooltip-trigger">{content}</span>
+      </Popover>
+    );
+  };
+
   return (
-    <main className="team-workspace-page">
-      <aside className="workspace-sidebar" aria-label="团队导航">
-        <div className="workspace-sidebar__brand">
-          <BrandMark />
-          <span>TeamTrip</span>
-        </div>
+    <Layout hasSider className="team-workspace-page" aria-busy={isInitialPageLoading}>
+      {contextHolder}
+      {isInitialPageLoading ? (
+        <TeamWorkspaceSkeleton />
+      ) : (
+        <>
+        <TeamSidebar
+          activeItem="workspace"
+          hasFinalTravelDates={hasFinalTravelDates}
+          inviteCode={detail?.inviteCode}
+          teamId={teamId}
+          user={{
+            avatar: currentMember?.avatar,
+            nickname: currentMember?.nickname,
+            role: currentMember?.role || detail?.myRole,
+            roleText: currentMember?.roleText,
+          }}
+          onBlockedItinerary={() => messageApi.warning("请先锁定最终出行日期")}
+          onLogout={handleLogout}
+        />
 
-        <button className="workspace-back-button" type="button" onClick={() => navigate("/teams")}>
-          <ArrowLeft size={18} />
-          返回我的团队
-        </button>
-
-        <section className="workspace-team-mini" aria-label="当前团队">
-          <img src={teamCover} alt="" />
-          <div>
-            <strong>国庆杭州旅行</strong>
-            <span>杭州 · 8 人</span>
-            <em>行程准备中</em>
-          </div>
-        </section>
-
-        <nav className="workspace-nav">
-          {navItems.map(({ label, icon: Icon, active, path, externalPath }) => (
-            <button
-              className={`workspace-nav__item ${active ? "active" : ""}`}
-              key={label}
-              type="button"
-              onClick={() => {
-                if (externalPath) {
-                  window.open(externalPath, "_blank", "noopener,noreferrer");
-                  return;
-                }
-
-                if (path) {
-                  navigate(path);
-                }
-              }}
-            >
-              <Icon size={20} />
-              {label}
+      <Layout className="workspace-main-layout">
+        <Content className="workspace-main">
+        {pageError && !detail ? (
+          <section className="workspace-card workspace-error-state">
+            <AlertCircle size={24} />
+            <strong>{getErrorMessage(pageError)}</strong>
+            <button className="workspace-primary-button" type="button" onClick={() => navigate("/teams")}>
+              返回我的团队
             </button>
-          ))}
-        </nav>
-
-        <div className="workspace-sidebar__user">
-          <img src={avatar} alt="Laow" />
-          <div>
-            <strong>Laow</strong>
-            <span>Owner</span>
-          </div>
-          <ChevronDown size={18} />
-        </div>
-      </aside>
-
-      <section className="workspace-main">
-        <header className="workspace-topbar">
-          <div>
-            <h1>团队工作台</h1>
-            <p>补齐团队信息，找到大家都合适的旅行时间</p>
-          </div>
-          <div className="workspace-topbar__actions">
-            <button className="workspace-primary-button" type="button" onClick={copyInviteCode}>
-              <Copy size={18} />
-              复制邀请码
-            </button>
-          </div>
-        </header>
-
-        <section className="workspace-hero-card">
-          <img className="workspace-hero-card__cover" src={teamCover} alt="" />
-          <div className="workspace-hero-card__body">
-            <div className="workspace-title-row">
-              <h2>国庆杭州旅行</h2>
-              <button type="button" aria-label="编辑团队名称">
-                <Edit3 size={18} />
-              </button>
-            </div>
-            <p>杭州 · 8 人 · <strong>行程准备中</strong></p>
-            <div className="workspace-team-stats">
-              <div>
-                <span>团队创建者</span>
-                <strong>
-                  <img src={avatar} alt="" />
-                  Laow
-                </strong>
-              </div>
-              <div>
-                <span>已完成 Trip-BTI</span>
-                <strong>7 / 8 人</strong>
-              </div>
-              <div>
-                <span>已填写可出行时间</span>
-                <strong>5 / 8 人</strong>
-              </div>
-              <div>
-                <span>最晚出行日期</span>
-                <strong>待锁定</strong>
-              </div>
-            </div>
-          </div>
-          <div className="workspace-hero-card__cta">
-            <button className="workspace-primary-button" type="button" onClick={() => navigate("/teams/hangzhou-2025/itinerary")}>
-              <Route size={18} />
-              进入行程规划
-            </button>
-            <small>仍有成员未填写时间，可先开始规划</small>
-          </div>
-        </section>
-
-        <div className="workspace-grid">
-          <section className="workspace-left-column">
-            <article className="workspace-card">
-              <h3>
-                <CheckCircle2 size={20} />
-                我的准备
-              </h3>
-              <div className="readiness-list">
-                {readinessItems.map(({ title, desc, status, icon: Icon }) => (
-                  <button className="readiness-item" key={title} type="button">
-                    <span className="readiness-item__icon">
-                      <Icon size={20} />
-                    </span>
-                    <span>
-                      <strong>{title}</strong>
-                      <small>{desc}</small>
-                    </span>
-                    {status && <em>{status}</em>}
-                    <ChevronRight size={19} />
-                  </button>
-                ))}
-              </div>
-            </article>
-
-            <article className="workspace-card calendar-card">
-              <h3>
-                可出行时间汇总
-                <Info size={18} />
-              </h3>
-              <div className="calendar-legend">
-                <span className="all">全员可出行</span>
-                <span className="most">多数可出行</span>
-                <span className="few">少数时段</span>
-                <span className="none">不可出行</span>
-              </div>
-              <div className="calendar-month">
-                <button type="button">‹</button>
-                <strong>2025年10月</strong>
-                <button type="button">›</button>
-              </div>
-              <div className="calendar-week">
-                {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
-                  <span key={day}>{day}</span>
-                ))}
-              </div>
-              <div className="calendar-days">
-                {calendarDays.map((item, index) => (
-                  <span className={item.tone} key={`${item.day}-${index}`}>
-                    {item.day}
-                  </span>
-                ))}
-              </div>
-            </article>
           </section>
+        ) : (
+          <>
+            <section className="workspace-hero-card">
+              <img className="workspace-hero-card__cover" src={coverImage} alt="" />
+              <div className="workspace-hero-card__body">
+                <div className="workspace-title-row">
+                  <h2>{detail?.name || (isInitialPageLoading ? "团队信息加载中" : "团队旅行")}</h2>
+                  <button
+                    aria-label="复制邀请码"
+                    className="workspace-invite-copy-button"
+                    disabled={!detail}
+                    type="button"
+                    onClick={copyInviteCode}
+                  >
+                    <span>邀请码</span>
+                    <strong>{detail?.inviteCode || String(detail?.teamId || teamId)}</strong>
+                    <Copy size={14} />
+                  </button>
+                </div>
+                <p>
+                  {detail?.destination || "待确认地点"} · {detail?.totalMemberCount ?? members.length} 人 ·{" "}
+                  <StatusTag variant={getStatusVariant(statusText)}>{statusText}</StatusTag>
+                </p>
+                <div className="workspace-team-stats">
+                  <div>
+                    <span>团队创建者</span>
+                    <strong className="workspace-team-owner-name">
+                      <img src={members.find((member) => member.role === "owner")?.avatar || avatar} alt="" />
+                      <span>{ownerName}</span>
+                    </strong>
+                  </div>
+                  <div>
+                    <span>已完成 Trip-BTI</span>
+                    {renderPendingMemberTooltip(
+                      "未完成测试",
+                      tripProfilePendingMembers,
+                      <strong>
+                        {detail?.tripProfileDoneCount ?? members.filter((member) => member.tripProfileCompleted).length} /{" "}
+                        {detail?.totalMemberCount ?? members.length} 人
+                      </strong>,
+                    )}
+                  </div>
+                  <div>
+                    <span>已填写可出行时间</span>
+                    {renderPendingMemberTooltip(
+                      "未填写可出行时间",
+                      availabilityPendingMembers,
+                      <strong>
+                        {detail?.availabilityDoneCount ?? members.filter((member) => member.availabilitySubmitted).length} /{" "}
+                        {detail?.totalMemberCount ?? members.length} 人
+                      </strong>,
+                    )}
+                  </div>
+                  <div className="workspace-final-date-stat">
+                    <span>最终出行日期</span>
+                    <div className="workspace-final-date-row">
+                      <strong>{formatRange(finalDateRange)}</strong>
+                      {isOwner && (
+                        <Tooltip title={detail?.canUnlockDates ? "解锁最终日期" : detail?.canLockDates ? "选择并锁定最终日期" : "暂无锁定权限"}>
+                          <button
+                            aria-label={detail?.canUnlockDates ? "解锁最终日期" : "选择并锁定最终日期"}
+                            className={`workspace-date-lock-button ${detail?.canUnlockDates ? "is-unlock" : "is-lock"}`}
+                            disabled={detail?.canUnlockDates ? !canUnlockFinalDate : !canOpenFinalDateModal}
+                            type="button"
+                            onClick={() => {
+                              if (detail?.canUnlockDates) {
+                                unlockDatesMutation.mutate();
+                                return;
+                              }
 
-          <section className="workspace-card workspace-insight-card">
-            <h3>
-              团队旅行画像
-              <Info size={18} />
-            </h3>
-            <div className="workspace-insight-grid">
-              <div className="ai-summary-panel">
-                <h4>
-                  <Sparkles size={20} />
-                  AI 团队总结
-                </h4>
-                {aiCards.map(({ icon: Icon, title, text }) => (
-                  <article className="ai-summary-item" key={title}>
-                    <Icon size={20} />
-                    <div>
-                      <strong>{title}</strong>
-                      <p>{text}</p>
+                              openFinalDateModal();
+                            }}
+                          >
+                            {detail?.canUnlockDates ? <UnlockKeyhole size={17} /> : <LockKeyhole size={17} />}
+                          </button>
+                        </Tooltip>
+                      )}
                     </div>
-                  </article>
-                ))}
-                <div className="ai-note">
-                  <strong>AI 小贴士</strong>
-                  <p>根据成员偏好，优先考虑步行友好的景点与交通便利的区域，并在餐饮安排中兼顾口味差异。</p>
+                  </div>
                 </div>
               </div>
-
-              <div className="preference-panel">
-                <article className="preference-card">
-                  <div className="preference-card__heading">
-                    <h4>偏好维度对比</h4>
-                    <span>偏好强度　低　中　高</span>
-                  </div>
-                  <div className="preference-list">
-                    {preferenceRows.map((row) => (
-                      <div className="preference-row" key={row.label}>
-                        <span>{row.label}</span>
-                        <i>
-                          <b style={{ left: `${row.value}%` }} />
-                        </i>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-
-                <article className="preference-card keywords-card">
-                  <h4>成员偏好关键词 <span>Top 词云</span></h4>
-                  <div className="keyword-cloud">
-                    {keywords.map((keyword) => (
-                      <span key={keyword}>{keyword}</span>
-                    ))}
-                  </div>
-                  <button type="button">
-                    查看完整偏好详情
-                    <ChevronRight size={17} />
-                  </button>
-                </article>
+              <div className="workspace-hero-card__cta">
+                <button
+                  className="workspace-primary-button"
+                  disabled={!hasFinalTravelDates}
+                  type="button"
+                  onClick={() => {
+                    if (hasFinalTravelDates) {
+                      navigate(`/teams/${teamId}/itinerary`);
+                    }
+                  }}
+                >
+                  <Route size={18} />
+                  进入行程规划
+                </button>
+                <small>{hasFinalTravelDates ? "最终日期已锁定，可以开始规划" : "锁定最终出行日期后即可进入规划"}</small>
               </div>
-            </div>
-          </section>
-        </div>
-      </section>
+            </section>
 
-      {toast && <div className="workspace-toast" role="status">{toast}</div>}
-    </main>
+            <div className="workspace-grid">
+              <section className="workspace-left-column">
+                <article className="workspace-card">
+                  <h3>
+                    <CheckCircle2 size={20} />
+                    我的准备
+                  </h3>
+                  <div className="readiness-list">
+                    <button
+                      className={`readiness-item ${isTripProfileCompleted ? "is-completed" : "is-pending"}`}
+                      type="button"
+                      onClick={() =>
+                        navigate(isTripProfileCompleted ? "/travel-bti/result" : "/travel-bti")
+                      }
+                    >
+                      <span className="readiness-item__icon">
+                        {isTripProfileCompleted ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+                      </span>
+                      <span>
+                        <strong>Trip-BTI 测试</strong>
+                        <small>{preparation?.tripProfileStatusText || (isTripProfileCompleted ? "已完成 · 供团队画像参考" : "待完成 · 完成后画像会刷新")}</small>
+                      </span>
+                      <StatusTag variant={isTripProfileCompleted ? "completed" : "pending"}>
+                        {isTripProfileCompleted ? "已完成" : "待填写"}
+                      </StatusTag>
+                      <ChevronRight size={19} />
+                    </button>
+                    <button
+                      className="readiness-item"
+                      type="button"
+                      onClick={() => setAvailabilityModalOpen(true)}
+                    >
+                      <span className="readiness-item__icon">
+                        <CalendarDays size={20} />
+                      </span>
+                      <span>
+                        <strong>可出行时间</strong>
+                        <small>
+                          {selectedRanges.length ? `已选择 ${selectedRanges.length} 段时间` : "选择时间段后自动保存"}
+                        </small>
+                      </span>
+                      <StatusTag variant={preparation?.availabilitySubmitted ? "completed" : "pending"}>
+                        {preparation?.availabilitySubmitted ? "已填写" : "待填写"}
+                      </StatusTag>
+                      <ChevronRight size={19} />
+                    </button>
+                  </div>
+                </article>
+
+                <article className="workspace-card calendar-card">
+                  <h3>
+                    可出行时间汇总
+                  </h3>
+                  <div className="calendar-actions">
+                    <div className={`team-availability-calendar ${calendarQuery.isFetching ? "is-loading" : ""}`}>
+                      <Calendar
+                        fullscreen={false}
+                        fullCellRender={renderTeamCalendarCell}
+                        headerRender={({ value }) => (
+                          <div className="team-calendar-header">
+                            <div className="team-calendar-header__nav">
+                              <button aria-label="上一年" type="button" onClick={() => changeCalendarMonth(value.subtract(1, "year"))}>
+                                <ChevronsLeft size={16} />
+                              </button>
+                              <button aria-label="上个月" type="button" onClick={() => changeCalendarMonth(value.subtract(1, "month"))}>
+                                <ChevronLeft size={16} />
+                              </button>
+                            </div>
+                            <strong>{value.format("YYYY年M月")}</strong>
+                            <div className="team-calendar-header__nav">
+                              <button aria-label="下个月" type="button" onClick={() => changeCalendarMonth(value.add(1, "month"))}>
+                                <ChevronRight size={16} />
+                              </button>
+                              <button aria-label="下一年" type="button" onClick={() => changeCalendarMonth(value.add(1, "year"))}>
+                                <ChevronsRight size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        locale={datePickerLocale}
+                        mode="month"
+                        onPanelChange={changeCalendarMonth}
+                        value={calendarValue}
+                      />
+                    </div>
+                    <div className="calendar-legend" aria-label="团队可出行图例">
+                      <span className="all">全员</span>
+                      <span className="most">多数</span>
+                      <span className="few">部分</span>
+                    </div>
+                  </div>
+                </article>
+              </section>
+
+              <section className="workspace-card workspace-insight-card">
+                <h3>
+                  团队旅行画像
+                </h3>
+                <div className="workspace-insight-grid">
+                  <div className="ai-summary-panel">
+                    <h4>
+                      <Sparkles size={20} />
+                      AI 团队总结
+                    </h4>
+                    <article className="ai-summary-primary">
+                      <span>团队风格</span>
+                      <strong>{teamStyleTitle}</strong>
+                      <p>{portrait?.summaryText || "成员完成 Trip-BTI 后会生成团队旅行画像。"}</p>
+                    </article>
+                    <article className="ai-summary-line ai-summary-line--distribution">
+                      <div>
+                        <strong>人格分布</strong>
+                        <p>
+                          {portrait?.archetypeDistribution?.length
+                            ? portrait.archetypeDistribution
+                                .slice(0, 3)
+                                .map((item) => `${item.name} ${item.count} 人`)
+                                .join("，")
+                            : "暂无足够成员数据"}
+                        </p>
+                      </div>
+                    </article>
+                    <article className="ai-summary-line ai-summary-line--difference">
+                      <div>
+                        <strong>分歧提示</strong>
+                        <p>
+                          {riskyDimensions[0]?.suggestionText ||
+                            (riskyDimensions.length ? `${riskyDimensions.length} 个维度存在差异，建议保留自由活动时间。` : "当前暂无明显分歧。")}
+                        </p>
+                      </div>
+                    </article>
+                    <div className="ai-note" role="note">
+                      画像数据约 30 分钟自动更新
+                    </div>
+                  </div>
+
+                  <div className="preference-panel">
+                    <article className="preference-card">
+                      <div className="preference-card__heading">
+                        <h4>偏好维度对比</h4>
+                        <span>悬停查看团队倾向说明</span>
+                      </div>
+                      <div className="preference-list">
+                        {(portrait?.dimensions || []).slice(0, 10).map((row) => {
+                          const leftLabel = row.left || "左侧偏好";
+                          const rightLabel = row.right || "右侧偏好";
+                          const preferencePosition = Math.round(clampPreferenceScore(row.averageScore) * 100);
+                          const preferenceDirection =
+                            preferencePosition < 46 ? "left" : preferencePosition > 54 ? "right" : "neutral";
+                          const preferenceValueLabel =
+                            preferenceDirection === "neutral"
+                              ? "均衡"
+                              : `${preferenceDirection === "left" ? leftLabel : rightLabel} ${Math.abs(preferencePosition - 50) * 2}%`;
+                          const activeSegmentCount =
+                            preferenceDirection === "neutral"
+                              ? 0
+                              : Math.max(1, Math.ceil((Math.abs(preferencePosition - 50) / 50) * 4));
+
+                          return (
+                            <div
+                              className="preference-row"
+                              key={row.dimension}
+                              aria-label={`${row.label}：${preferenceValueLabel}`}
+                            >
+                              <strong>{row.label}</strong>
+                              <span className="preference-pole preference-pole--left">{leftLabel}</span>
+                              <div className="preference-axis">
+                                {preferenceSideSegments.map((_, index) => (
+                                  <i
+                                    className={`preference-axis__segment preference-axis__segment--left preference-axis__segment--level-${
+                                      4 - index
+                                    } ${
+                                      preferenceDirection === "left" && index >= 4 - activeSegmentCount ? "is-active" : ""
+                                    }`}
+                                    key={`left-${index}`}
+                                  />
+                                ))}
+                                <i
+                                  className={`preference-axis__segment preference-axis__segment--neutral ${
+                                    preferenceDirection === "neutral" ? "is-active" : ""
+                                  }`}
+                                />
+                                {preferenceSideSegments.map((_, index) => (
+                                  <i
+                                    className={`preference-axis__segment preference-axis__segment--right preference-axis__segment--level-${
+                                      index + 1
+                                    } ${
+                                      preferenceDirection === "right" && index < activeSegmentCount ? "is-active" : ""
+                                    }`}
+                                    key={`right-${index}`}
+                                  />
+                                ))}
+                                <b
+                                  className={`preference-axis__point is-${preferenceDirection} preference-axis__point--level-${activeSegmentCount}`}
+                                  style={{ left: `${preferencePosition}%` }}
+                                >
+                                  <span>{preferenceValueLabel}</span>
+                                </b>
+                              </div>
+                              <span className="preference-pole preference-pole--right">{rightLabel}</span>
+                            </div>
+                          );
+                        })}
+                        {!portrait?.dimensions?.length && <p className="workspace-empty-text">暂无画像维度数据</p>}
+                      </div>
+                    </article>
+
+                    <article className="preference-card keywords-card">
+                      <h4>
+                        成员偏好关键词 <span>Top 词云</span>
+                      </h4>
+                      <div className="keyword-cloud">
+                        {(portrait?.keywords?.length ? portrait.keywords : ["等待成员完成测试"]).map((keyword, index) => (
+                          <Tooltip key={keyword} title={`来自${getKeywordMeta(keyword).source}`}>
+                            <span
+                              className={`keyword-cloud__tag keyword-cloud__tag--${getKeywordMeta(keyword).tone} ${
+                                index < 2 ? "is-featured" : ""
+                              }`}
+                            >
+                              {keyword}
+                            </span>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </>
+        )}
+      </Content>
+      </Layout>
+        </>
+      )}
+
+      <Modal
+        centered
+        className="workspace-final-date-modal workspace-availability-modal"
+        confirmLoading={lockDatesMutation.isPending}
+        destroyOnHidden
+        mask={{ enabled: true, blur: true, closable: !lockDatesMutation.isPending }}
+        okButtonProps={{ disabled: !finalDateRangeValue?.[0] || !finalDateRangeValue?.[1] }}
+        okText="锁定日期"
+        open={finalDateModalOpen}
+        title={
+          <span className="workspace-availability-modal__title">
+            <LockKeyhole size={20} />
+            锁定最终出行日期
+          </span>
+        }
+        width={480}
+        onCancel={() => {
+          if (!lockDatesMutation.isPending) {
+            setFinalDateModalOpen(false);
+          }
+        }}
+        onOk={submitFinalDateRange}
+      >
+        <div className="workspace-availability-modal__content">
+          <p>参考下方可出行日期汇总，选择团队最终出行的开始和结束日期。</p>
+          <RangePicker
+            allowClear
+            className="calendar-range-picker"
+            disabled={lockDatesMutation.isPending}
+            format="YYYY-MM-DD"
+            locale={datePickerLocale}
+            placeholder={["开始日期", "结束日期"]}
+            value={finalDateRangeValue}
+            onChange={(dates) => updateFinalDateRange(dates)}
+          />
+          {lockCandidate && <small>已根据团队可出行情况预填推荐日期：{formatRange(lockCandidate)}</small>}
+        </div>
+      </Modal>
+
+      <Modal
+        centered
+        className="workspace-availability-modal"
+        destroyOnHidden
+        footer={null}
+        mask={{ enabled: true, blur: true, closable: !saveAvailabilityMutation.isPending }}
+        open={availabilityModalOpen}
+        title={
+          <span className="workspace-availability-modal__title">
+            <CalendarDays size={20} />
+            填写可出行时间
+          </span>
+        }
+        width={480}
+        onCancel={() => {
+          if (!saveAvailabilityMutation.isPending) {
+            setAvailabilityModalOpen(false);
+          }
+        }}
+      >
+        <div className="workspace-availability-modal__content">
+          <p>{detail?.dateLocked ? "最终日期已锁定，当前不可修改。" : "选择完整的开始和结束日期后将自动保存。"}</p>
+          <RangePicker
+            allowClear
+            className="calendar-range-picker"
+            disabled={detail?.dateLocked || saveAvailabilityMutation.isPending}
+            format="YYYY-MM-DD"
+            locale={datePickerLocale}
+            placeholder={["开始日期", "结束日期"]}
+            value={availabilityRange}
+            onChange={(dates) => updateAvailabilityRange(dates)}
+          />
+          {saveAvailabilityMutation.isPending && <small>正在保存可出行时间...</small>}
+        </div>
+      </Modal>
+
+    </Layout>
   );
 }

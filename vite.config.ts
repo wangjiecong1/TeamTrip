@@ -1,7 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const API_PROXY_TARGET = "https://582c12c4.r9.cpolar.cn";
+const API_PROXY_TARGET = "https://cricketchief.com";
 
 export default defineConfig(() => {
   return {

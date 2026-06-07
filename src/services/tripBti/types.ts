@@ -39,6 +39,16 @@ export type ArchetypeCandidate = {
   matchType?: string;
 };
 
+export type TripBtiDimension = {
+  key: string;
+  label: string;
+  leftPolarity?: string;
+  rightPolarity?: string;
+  order?: number;
+  polarity?: string;
+  score: number;
+};
+
 export type TripBtiProfile = {
   userId?: number;
   hasTripProfile: boolean;
@@ -55,11 +65,13 @@ export type TripBtiProfile = {
   social?: number;
   budget?: number;
   exploration?: number;
+  dimensions?: TripBtiDimension[];
   typeCode?: string;
   archetypeCode?: string | null;
   archetypeName?: string | null;
   archetypeTagline?: string | null;
   archetypeCalcAt?: string;
+  keywords?: string[];
   archetypeCandidates?: ArchetypeCandidate[];
   updatedAt?: string;
   lastAnswerRecordId?: number;

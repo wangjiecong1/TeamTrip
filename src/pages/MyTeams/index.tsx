@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Avatar, Button, Card, Form, Input, message, Modal, Skeleton, Tag } from "antd";
+import { Avatar, BorderBeam, Button, Card, Form, Input, message, Modal, Skeleton } from "antd";
 import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
   ClipboardCopy,
+  Compass,
   Copy,
   Lightbulb,
   Lock,
@@ -16,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
+import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
 import { ApiError, authService, authTokenStorage, MyTeamsOverviewResponse, teamsService, TeamCardResponse } from "../../services";
 import avatar from "../../../assets/common/app-header-user-avatar.svg";
 import lakeCover from "../../../assets/my-teams/my-teams-card-cover-lake.svg";
@@ -30,9 +32,10 @@ type TeamCard = {
   name: string;
   destination: string;
   members: number;
-  role: "Owner" | "Member";
+  role: string;
+  roleVariant: StatusTagVariant;
   status: string;
-  statusTone: "blue" | "orange" | "green" | "slate";
+  statusVariant: StatusTagVariant;
   cover: string;
   inviteCode: string;
 };
@@ -64,22 +67,58 @@ const getErrorMessage = (error: unknown) => {
   return "请求失败，请稍后重试";
 };
 
-const getStatusTone = (team: TeamCardResponse): TeamCard["statusTone"] => {
+const getStatusVariant = (team: TeamCardResponse): StatusTagVariant => {
   if (team.locked || team.teamStatus === 1) {
-    return "green";
+    return "locked";
   }
 
   const statusText = team.statusTag || team.teamStatusText || "";
 
+  if (statusText.includes("过期")) {
+    return "expired";
+  }
+
+  if (statusText.includes("完成")) {
+    return "completed";
+  }
+
+  if (statusText.includes("进行")) {
+    return "active";
+  }
+
   if (statusText.includes("待")) {
-    return "orange";
+    return "pending";
   }
 
   if (statusText.includes("规划") || statusText.includes("准备")) {
-    return "blue";
+    return "planning";
   }
 
-  return "slate";
+  return "neutral";
+};
+
+const getRoleVariant = (role?: string): StatusTagVariant => {
+  if (role === "owner") {
+    return "owner";
+  }
+
+  if (role === "admin") {
+    return "admin";
+  }
+
+  return "member";
+};
+
+const getRoleText = (role?: string, roleText?: string) => {
+  if (role === "owner") {
+    return "Owner";
+  }
+
+  if (role === "admin") {
+    return roleText || "管理员";
+  }
+
+  return roleText || "成员";
 };
 
 const mapTeamCard = (team: TeamCardResponse, index: number): TeamCard => ({
@@ -87,9 +126,10 @@ const mapTeamCard = (team: TeamCardResponse, index: number): TeamCard => ({
   name: team.name || "未命名旅行小队",
   destination: team.destination || "待确认地点",
   members: team.memberCount ?? 1,
-  role: team.role === "owner" ? "Owner" : "Member",
+  role: getRoleText(team.role, team.roleText),
+  roleVariant: getRoleVariant(team.role),
   status: team.statusTag || team.teamStatusText || (team.locked ? "已锁定行程" : "行程规划中"),
-  statusTone: getStatusTone(team),
+  statusVariant: getStatusVariant(team),
   cover: team.avatar || coverFallbacks[index % coverFallbacks.length],
   inviteCode: team.inviteCode || String(team.teamId),
 });
@@ -227,9 +267,32 @@ export function MyTeamsPage() {
   const pendingDateCount = stats?.pendingAvailability ?? 0;
   const totalJoined = stats?.totalJoined ?? teamCards.length;
   const nickname = user?.nickname || "旅行者";
-  const tripProfileText = user?.tripProfileStatusText || (user?.tripProfileCompleted ? "已完成测试" : "待完成测试");
+  const isTripProfileCompleted = Boolean(user?.tripProfileCompleted);
+  const tripProfileText = user?.tripProfileStatusText || (isTripProfileCompleted ? "已完成测试" : "测试进行中");
+  const travelBtiPath = isTripProfileCompleted ? "/travel-bti/result" : "/travel-bti";
   const archetypeName = user?.archetype?.name;
-  const styleTags = user?.styleTags?.length ? user.styleTags : user?.tripProfileCompleted ? ["旅行画像"] : ["完成测试后生成"];
+  const styleTags = user?.styleTags?.length ? user.styleTags : ["旅行画像"];
+  const travelBtiRow = (
+    <div
+      className={`travel-bti-row ${isTripProfileCompleted ? "" : "is-active"}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(travelBtiPath)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(travelBtiPath);
+        }
+      }}
+    >
+      {isTripProfileCompleted ? <CheckCircle2 size={30} /> : <Compass size={30} />}
+      <span>
+        <small>Trip-BTI 旅行性格测试</small>
+        <strong>{tripProfileText}</strong>
+      </span>
+      <ChevronRight size={24} />
+    </div>
+  );
 
   useEffect(() => {
     loadOverview();
@@ -252,14 +315,10 @@ export function MyTeamsPage() {
     }
   };
 
-  const showToast = (message: string) => {
-    messageApi.success(message);
-  };
-
   const handleInvite = async (inviteCode: string) => {
     try {
       await navigator.clipboard?.writeText(inviteCode);
-      showToast("邀请码已复制");
+      messageApi.success("邀请码已复制");
     } catch {
       messageApi.info(`邀请码：${inviteCode}`);
     }
@@ -267,7 +326,7 @@ export function MyTeamsPage() {
 
   const enterTeam = (teamId: string) => {
     navigate(`/teams/${teamId}/workspace`);
-    showToast("正在进入团队空间");
+    messageApi.info("正在进入团队空间");
   };
 
   const closeModal = () => setModalType(null);
@@ -292,13 +351,13 @@ export function MyTeamsPage() {
           name,
           destination: destination || undefined,
         });
-        showToast("团队已创建");
+        messageApi.success("团队已创建");
       } else {
         const joined = await teamsService.joinTeam({
           inviteCode: (inviteCode || "").trim().toUpperCase(),
         });
 
-        showToast(joined.needTripProfile ? "已加入团队，请先完成 Trip-BTI" : "已加入团队");
+        messageApi.success(joined.needTripProfile ? "已加入团队，请先完成 Trip-BTI" : "已加入团队");
       }
 
       closeModal();
@@ -336,41 +395,31 @@ export function MyTeamsPage() {
                   <h2>Hi，{nickname}，欢迎回来</h2>
                   <p>继续你的团队旅行规划，遇见更多美好风景</p>
 
-                  <div
-                    className="travel-bti-row"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(user?.tripProfileCompleted ? "/travel-bti/result" : "/travel-bti")}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        navigate(user?.tripProfileCompleted ? "/travel-bti/result" : "/travel-bti");
-                      }
-                    }}
-                  >
-                    <CheckCircle2 size={30} />
-                    <span>
-                      <small>Trip-BTI 旅行性格测试</small>
-                      <strong>{tripProfileText}</strong>
-                    </span>
-                    <ChevronRight size={24} />
-                  </div>
+                  {isTripProfileCompleted ? (
+                    travelBtiRow
+                  ) : (
+                    <BorderBeam color="#F97316" outset={2}>
+                      {travelBtiRow}
+                    </BorderBeam>
+                  )}
 
-                  <div className="persona-row">
-                    <div className="persona-row__title">
-                      <span className="persona-row__icon" aria-hidden="true">
-                        <Map size={21} />
-                      </span>
-                      <strong>{archetypeName || (user?.tripProfileCompleted ? "旅行风格" : "偏好待生成")}</strong>
+                  {isTripProfileCompleted && (
+                    <div className="persona-row">
+                      <div className="persona-row__title">
+                        <span className="persona-row__icon" aria-hidden="true">
+                          <Map size={21} />
+                        </span>
+                        <strong>{archetypeName || "旅行风格"}</strong>
+                      </div>
+                      <div className="persona-row__tags">
+                        {styleTags.slice(0, 3).map((tag) => (
+                          <StatusTag className="persona-tag" key={tag} variant="neutral">
+                            {tag}
+                          </StatusTag>
+                        ))}
+                      </div>
                     </div>
-                    <div className="persona-row__tags">
-                      {styleTags.slice(0, 3).map((tag) => (
-                        <Tag className="persona-tag" key={tag} color="cyan" variant="filled">
-                          {tag}
-                        </Tag>
-                      ))}
-                    </div>
-                  </div>
+                  )}
                 </div>
               </Card>
 
@@ -442,12 +491,12 @@ export function MyTeamsPage() {
                           </div>
                         </div>
                         <div className="team-card__badges">
-                          <Tag className={`role-badge ${team.role === "Owner" ? "owner" : ""}`} variant="filled">
+                          <StatusTag className="role-badge" variant={team.roleVariant}>
                             {team.role}
-                          </Tag>
-                          <Tag className={`status-badge ${team.statusTone}`} variant="filled">
+                          </StatusTag>
+                          <StatusTag className="status-badge" variant={team.statusVariant}>
                             {team.status}
-                          </Tag>
+                          </StatusTag>
                         </div>
                       </Card>
                     );

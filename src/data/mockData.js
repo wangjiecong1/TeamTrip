@@ -158,13 +158,6 @@ export const itineraryPlanningMock = {
   ],
 };
 
-export const fetchItineraryPlanningMock = () =>
-  new Promise((resolve) => {
-    window.setTimeout(() => {
-      resolve(structuredClone(itineraryPlanningMock));
-    }, 120);
-  });
-
 export const finalItineraryMocks = {
   "TT-HZ-1024": {
     code: "TT-HZ-1024",

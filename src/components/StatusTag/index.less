@@ -1,0 +1,77 @@
+.tt-status-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tt-status-tag svg {
+  flex: 0 0 auto;
+}
+
+.tt-status-tag--dot::before {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+  border-radius: 50%;
+  content: "";
+}
+
+.tt-status-tag--planning,
+.tt-status-tag--member {
+  color: #2f80ed;
+  background: #eff6ff;
+  border-color: #e7f0ff;
+}
+
+.tt-status-tag--active {
+  color: #12a66a;
+  background: #ecfdf4;
+  border-color: #ddf8ea;
+}
+
+.tt-status-tag--locked,
+.tt-status-tag--owner {
+  color: #087c6a;
+  background: #f7fefc;
+  border-color: #bfe9e2;
+}
+
+.tt-status-tag--pending {
+  color: #f97316;
+  background: #fff7ed;
+  border-color: #ffe8c7;
+}
+
+.tt-status-tag--completed {
+  color: #16a65e;
+  background: #ecfdf4;
+  border-color: #ddf8ea;
+}
+
+.tt-status-tag--expired {
+  color: #64748b;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.tt-status-tag--admin {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-color: #efe9ff;
+}
+
+.tt-status-tag--neutral {
+  color: #087c6a;
+  background: #f0fbf8;
+  border-color: #d4f0ea;
+}

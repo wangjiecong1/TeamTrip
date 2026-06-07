@@ -1,11 +1,10 @@
-import React, { useState } from "react";
-import { Avatar, Button, Dropdown } from "antd";
-import type { MenuProps } from "antd";
+import React from "react";
+import { Avatar, Button } from "antd";
 import type { LucideIcon } from "lucide-react";
-import { ChevronDown, LogOut, Plus, Settings, UserPlus } from "lucide-react";
+import { ChevronDown, Plus, UserPlus } from "lucide-react";
 import logoPin from "../../assets/common/app-header-logo-pin.svg";
 import avatar from "../../assets/common/app-header-user-avatar.svg";
-import { PersonalSettingsDrawer } from "./PersonalSettingsDrawer";
+import { UserAccountMenu } from "./UserAccountMenu";
 import "./AppHeader.less";
 
 type AppHeaderAction = {
@@ -32,39 +31,14 @@ export function AppHeader({
   onLogout,
   showUserMenu = true,
 }: AppHeaderProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const headerActions =
     actions ??
     [
       { label: "创建团队", icon: Plus, onClick: onCreateTeam, variant: "primary" as const },
       { label: "加入团队", icon: UserPlus, onClick: onJoinTeam, variant: "outline" as const },
     ];
-  const userMenuItems: MenuProps["items"] = [
-    {
-      key: "settings",
-      icon: <Settings size={17} />,
-      label: "个人设置",
-    },
-    {
-      key: "logout",
-      icon: <LogOut size={17} />,
-      label: "退出登录",
-    },
-  ];
-
-  const handleUserMenuClick: MenuProps["onClick"] = ({ key }) => {
-    if (key === "settings") {
-      setSettingsOpen(true);
-    }
-
-    if (key === "logout") {
-      onLogout?.();
-    }
-  };
-
   return (
-    <>
-      <header className="app-header">
+    <header className="app-header">
         <div className="app-header__brand">
           <img src={logoPin} alt="TeamTrip" />
           <span>TeamTrip</span>
@@ -86,22 +60,14 @@ export function AppHeader({
             </Button>
           ))}
           {showUserMenu && (
-            <Dropdown
-              classNames={{ root: "app-header__dropdown" }}
-              menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
-              placement="bottomRight"
-              trigger={["click"]}
-            >
+            <UserAccountMenu onLogout={onLogout}>
               <Button className="app-header__avatar-button" htmlType="button" type="text">
                 <Avatar alt="用户头像" size={46} src={avatar} />
                 <ChevronDown size={20} />
               </Button>
-            </Dropdown>
+            </UserAccountMenu>
           )}
         </div>
-      </header>
-
-      <PersonalSettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </>
+    </header>
   );
 }

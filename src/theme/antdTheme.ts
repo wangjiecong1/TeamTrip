@@ -21,6 +21,7 @@ const BORDER = "#E2E8F0";
 const BORDER_SECONDARY = "#EEF2F6";
 const BG_CONTAINER = "#FFFFFF";
 const BG_LAYOUT = "#F7FAFC";
+const SIDER_BG = "rgba(255, 255, 255, 0.9)";
 
 const FONT_STACK =
   '"PingFang SC","Microsoft YaHei",Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
@@ -81,6 +82,18 @@ export const teamTripTheme: ThemeConfig = {
     Form: {
       itemMarginBottom: 20,
       labelFontSize: 14,
+    },
+    Layout: {
+      bodyBg: "transparent",
+      siderBg: SIDER_BG,
+      lightSiderBg: SIDER_BG,
+      triggerBg: "transparent",
+      triggerColor: TEXT_SECONDARY,
+      lightTriggerBg: "transparent",
+      lightTriggerColor: TEXT_SECONDARY,
+      zeroTriggerHeight: 48,
+      zeroTriggerWidth: 48,
+      headerBg: SIDER_BG,
     },
   },
 };

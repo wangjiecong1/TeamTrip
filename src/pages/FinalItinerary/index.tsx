@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CalendarDays, Car, ChevronDown, ChevronRight, Footprints, MapPin, Share2, ShieldCheck, Users } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
+import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
 import { fetchFinalItineraryByCodeMock } from "../../data/mockData";
 import heroImage from "../../../assets/login-register/login-register-hero-approved.webp";
 import "./index.less";
@@ -46,6 +47,34 @@ type FinalItineraryData = {
 
 const buildAmapUrl = (stop: FinalStop) =>
   `https://uri.amap.com/search?keyword=${encodeURIComponent(`${stop.title} ${stop.address}`)}`;
+
+const getStatusVariant = (status: string): StatusTagVariant => {
+  if (status.includes("锁定")) {
+    return "locked";
+  }
+
+  if (status.includes("完成")) {
+    return "completed";
+  }
+
+  if (status.includes("过期")) {
+    return "expired";
+  }
+
+  if (status.includes("待")) {
+    return "pending";
+  }
+
+  if (status.includes("进行")) {
+    return "active";
+  }
+
+  if (status.includes("规划")) {
+    return "planning";
+  }
+
+  return "neutral";
+};
 
 export function FinalItineraryPage() {
   const { code: codeParam = "" } = useParams();
@@ -133,7 +162,7 @@ export function FinalItineraryPage() {
           <div className="final-hero-card__content">
             <div className="final-title-row">
               <h1>{itinerary.title}</h1>
-              <span>{itinerary.status}</span>
+              <StatusTag variant={getStatusVariant(itinerary.status)}>{itinerary.status}</StatusTag>
             </div>
             <div className="final-meta-row">
               <span><MapPin size={18} />{itinerary.destination}</span>
@@ -175,7 +204,7 @@ export function FinalItineraryPage() {
                   <div className="final-stop__body">
                     <div className="final-stop__title">
                       <h3>{stop.title}</h3>
-                      <div>{stop.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                      <div>{stop.tags.map((tag) => <StatusTag key={tag} variant="neutral">{tag}</StatusTag>)}</div>
                     </div>
                     <p className="final-stop__address"><MapPin size={15} />{stop.address}</p>
                     <p className="final-stop__note">{stop.note}</p>
