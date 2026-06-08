@@ -6,6 +6,7 @@ import {
   ItineraryItem,
   ItineraryTimeline,
   ReorderItineraryRequest,
+  SharedFinalItineraryView,
   UpdateItineraryItemRequest,
 } from "./types";
 
@@ -58,6 +59,21 @@ export const itineraryService = {
     return {
       ...timeline,
       days: (timeline.days || []).map((day) => ({
+        ...day,
+        items: (day.items || []).slice().sort((a, b) => (a.orderNum ?? 0) - (b.orderNum ?? 0)),
+      })),
+    };
+  },
+
+  getSharedFinalItinerary: async (token: string): Promise<SharedFinalItineraryView> => {
+    const response = await apiClient.get<SharedFinalItineraryView | ApiResponse<SharedFinalItineraryView>>(
+      `/api/v1/share/${encodeURIComponent(token)}`,
+    );
+    const view = unwrapApiResponse(response.data);
+
+    return {
+      ...view,
+      days: (view.days || []).map((day) => ({
         ...day,
         items: (day.items || []).slice().sort((a, b) => (a.orderNum ?? 0) - (b.orderNum ?? 0)),
       })),

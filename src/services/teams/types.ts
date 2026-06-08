@@ -51,6 +51,8 @@ export type CreateTeamRequest = {
   description?: string;
 };
 
+export type UpdateTeamRequest = CreateTeamRequest;
+
 export type JoinTeamRequest = {
   inviteCode: string;
 };
@@ -58,6 +60,13 @@ export type JoinTeamRequest = {
 export type JoinTeamResponse = {
   team: TeamCardResponse;
   needTripProfile: boolean;
+};
+
+export type ShareLinkResponse = {
+  token: string;
+  url: string;
+  teamId: number;
+  createTime?: string;
 };
 
 export type TeamDetailResponse = {
@@ -128,6 +137,15 @@ export type TeamPortraitArchetype = {
 export type TeamPortraitResponse = {
   memberCount: number;
   summaryText?: string;
+  teamStyle?: string | null;
+  teamStyleDesc?: string | null;
+  planningAdvice?: string[] | string | null;
+  riskLevel?: "low" | "medium" | "high" | string | null;
+  riskDesc?: string | null;
+  schedulingRules?: string[] | string | null;
+  source?: string | null;
+  generatedAt?: string | null;
+  llmProvider?: string | null;
   keywords: string[];
   archetypeDistribution?: TeamPortraitArchetype[];
   dimensions: TeamPortraitDimension[];

@@ -1,4 +1,6 @@
 export { teamsService } from "./teamsService";
+export { connectTeamRealtime } from "./realtime";
+export type { TeamRealtimeEventName, TeamRealtimeFrame } from "./realtime";
 export type {
   ArchetypeSection,
   CreateTeamRequest,
@@ -11,6 +13,7 @@ export type {
   MyTeamsStatsSection,
   MyTeamsUserSection,
   SaveAvailabilityRequest,
+  ShareLinkResponse,
   TeamCalendarDay,
   TeamCalendarLevel,
   TeamCalendarResponse,
@@ -21,5 +24,6 @@ export type {
   TeamPortraitArchetype,
   TeamPortraitDimension,
   TeamPortraitResponse,
+  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./types";

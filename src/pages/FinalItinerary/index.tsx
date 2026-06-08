@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { CalendarDays, Car, ChevronDown, ChevronRight, Footprints, MapPin, Share2, ShieldCheck, Users } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
 import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
-import { fetchFinalItineraryByCodeMock } from "../../data/mockData";
+import { ApiError, itineraryService, ItineraryItem, SharedFinalItineraryView } from "../../services";
 import heroImage from "../../../assets/login-register/login-register-hero-approved.webp";
 import "./index.less";
 
@@ -45,8 +45,71 @@ type FinalItineraryData = {
   days: FinalDay[];
 };
 
+const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
 const buildAmapUrl = (stop: FinalStop) =>
   `https://uri.amap.com/search?keyword=${encodeURIComponent(`${stop.title} ${stop.address}`)}`;
+
+const formatDisplayDate = (date?: string | null) => {
+  if (!date) {
+    return "待确认";
+  }
+
+  const [, month, day] = date.split("-").map(Number);
+
+  if (!month || !day) {
+    return date;
+  }
+
+  return `${month}月${day}日`;
+};
+
+const getDurationText = (startDate?: string | null, endDate?: string | null) => {
+  if (!startDate || !endDate) {
+    return "待确认";
+  }
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const dayCount = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+
+  return `${dayCount}天${dayCount > 1 ? `${dayCount - 1}晚` : ""}`;
+};
+
+const getItemTags = (item: ItineraryItem) => [item.poiType, item.startTime && item.endTime ? `${item.startTime} - ${item.endTime}` : ""].filter(Boolean) as string[];
+
+const mapSharedItinerary = (token: string, view: SharedFinalItineraryView): FinalItineraryData => {
+  const team = view.team;
+  const days = (view.days || []).map((day, index) => ({
+    id: day.date || `day-${index + 1}`,
+    label: `Day ${index + 1}`,
+    date: formatDisplayDate(day.date),
+    weekday: day.date ? WEEKDAYS[new Date(`${day.date}T00:00:00`).getDay()] : "",
+    stops: (day.items || []).map((item, itemIndex) => ({
+      id: String(item.id ?? `${day.date}-${itemIndex}`),
+      title: item.placeName || "未命名地点",
+      tags: getItemTags(item),
+      address: item.address || "暂无详细地址",
+      note: item.note || "待补充备注",
+    })),
+  }));
+  const placeCount = days.reduce((total, day) => total + day.stops.length, 0);
+
+  return {
+    code: token,
+    status: team.locked ? "已锁定行程" : team.teamStatusText || "最终行程单",
+    title: team.name || "团队最终行程单",
+    destination: team.destination || "目的地待确认",
+    dateRange: `${formatDisplayDate(team.finalStartDate)} - ${formatDisplayDate(team.finalEndDate)}`,
+    duration: getDurationText(team.finalStartDate, team.finalEndDate),
+    memberCount: team.memberCount ?? team.totalMemberCount ?? 0,
+    dayCount: days.length,
+    placeCount,
+    transportCount: Math.max(0, placeCount - days.length),
+    summary: `${team.destination || "这段旅程"}的最终行程已整理完成，团队成员可以按天查看地点安排。`,
+    days,
+  };
+};
 
 const getStatusVariant = (status: string): StatusTagVariant => {
   if (status.includes("锁定")) {
@@ -88,17 +151,33 @@ export function FinalItineraryPage() {
     let alive = true;
 
     setError("");
-    fetchFinalItineraryByCodeMock(code)
+    setItinerary(null);
+
+    if (!code) {
+      setError("分享链接无效");
+      return () => {
+        alive = false;
+      };
+    }
+
+    itineraryService.getSharedFinalItinerary(code)
       .then((data) => {
         if (alive) {
-          setItinerary(data as FinalItineraryData);
+          setItinerary(mapSharedItinerary(code, data));
           setActiveDayIndex(0);
         }
       })
-      .catch(() => {
-        if (alive) {
-          setError("没有找到这份行程单");
+      .catch((error) => {
+        if (!alive) {
+          return;
         }
+
+        if (error instanceof ApiError && (error.status === 404 || error.status === 410)) {
+          setError(error.status === 410 ? "分享链接已过期" : "没有找到这份行程单");
+          return;
+        }
+
+        setError("读取行程单失败，请稍后重试");
       });
 
     return () => {
@@ -129,7 +208,7 @@ export function FinalItineraryPage() {
         <section className="final-itinerary-empty">
           <BrandMark />
           <h1>{error}</h1>
-          <p>请检查链接中的 code 是否正确。</p>
+          <p>请检查链接中的 token 是否正确。</p>
         </section>
       </main>
     );

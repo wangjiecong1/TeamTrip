@@ -109,6 +109,17 @@
   padding: 18px 22px;
 }
 
+.itinerary-trip-card.is-locked {
+  background: linear-gradient(135deg, rgba(240, 251, 248, 0.98) 0%, rgba(255, 255, 255, 0.98) 68%);
+  border-color: rgba(0, 168, 137, 0.32);
+  box-shadow: 0 18px 42px rgba(0, 168, 137, 0.1);
+}
+
+.itinerary-trip-card.is-locked .itinerary-trip-card__icon {
+  color: #087c6a;
+  background: #e6f7f4;
+}
+
 .itinerary-trip-card__icon {
   display: grid;
   width: 46px;
@@ -233,6 +244,36 @@
   box-shadow: 0 16px 30px rgba(15, 35, 55, 0.14);
 }
 
+.itinerary-stop.is-locked {
+  position: relative;
+  background: linear-gradient(90deg, rgba(240, 251, 248, 0.96) 0%, #fff 58%);
+  border-color: rgba(0, 168, 137, 0.3);
+  box-shadow: 0 6px 16px rgba(0, 168, 137, 0.08);
+}
+
+.itinerary-stop.is-locked::before {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #00a889 0%, #07967e 100%);
+  border-radius: 0 999px 999px 0;
+  content: "";
+}
+
+.itinerary-stop.is-locked .itinerary-stop__index {
+  color: #087c6a;
+  background: #e6f7f4;
+  border: 1px solid rgba(0, 168, 137, 0.26);
+}
+
+.itinerary-stop.is-locked .itinerary-stop__thumb {
+  color: #07967e;
+  background: #f0fbf8;
+  border-color: rgba(0, 168, 137, 0.22);
+}
+
 .itinerary-stop__drag {
   display: grid;
   width: 18px;
@@ -274,17 +315,21 @@
 }
 
 .itinerary-stop__thumb {
-  background: #eef4f6;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-}
-
-.itinerary-stop__thumb {
   display: grid;
   width: 64px;
   height: 54px;
+  overflow: hidden;
   place-items: center;
   color: #64748b;
+  background: #eef4f6;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.itinerary-stop__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .itinerary-stop__thumb.transport {
@@ -302,6 +347,7 @@
 }
 
 .itinerary-stop__body strong {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -347,10 +393,39 @@
   height: 24px;
 }
 
-.itinerary-stop__meta button {
+.itinerary-stop__more-wrap {
+  display: inline-flex;
+  border-radius: 12px;
+}
+
+.itinerary-stop__more {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
   color: #102033;
   background: transparent;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+.itinerary-stop__more:hover {
+  color: #008f82;
+  background: var(--tt-primary-soft);
+  border-color: rgba(0, 168, 137, 0.18);
+}
+
+.itinerary-stop__more:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.itinerary-stop.is-locked .itinerary-stop__more:disabled {
+  color: #087c6a;
+  background: #e6f7f4;
+  border-color: rgba(0, 168, 137, 0.24);
 }
 
 .itinerary-empty-state {

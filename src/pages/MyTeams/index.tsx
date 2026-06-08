@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Avatar, BorderBeam, Button, Card, Form, Input, message, Modal, Skeleton } from "antd";
+import { Avatar, BorderBeam, Button, Card, Dropdown, Form, Input, message, Modal, Skeleton } from "antd";
 import {
   CalendarDays,
   CheckCircle2,
@@ -13,12 +13,22 @@ import {
   Map,
   MapPin,
   MoreHorizontal,
+  Pencil,
+  Trash2,
   UserPlus,
   Users,
 } from "lucide-react";
 import { AppHeader } from "../../components/AppHeader";
 import { StatusTag, StatusTagVariant } from "../../components/StatusTag";
-import { ApiError, authService, authTokenStorage, MyTeamsOverviewResponse, teamsService, TeamCardResponse } from "../../services";
+import {
+  ApiError,
+  authService,
+  authTokenStorage,
+  connectTeamRealtime,
+  MyTeamsOverviewResponse,
+  teamsService,
+  TeamCardResponse,
+} from "../../services";
 import avatar from "../../../assets/common/app-header-user-avatar.svg";
 import lakeCover from "../../../assets/my-teams/my-teams-card-cover-lake.svg";
 import cityCover from "../../../assets/my-teams/my-teams-card-cover-city.svg";
@@ -26,7 +36,7 @@ import trainCover from "../../../assets/my-teams/my-teams-card-cover-train.svg";
 import emptySignpost from "../../../assets/travel-bti-test/travel-bti-test-side-signpost.png";
 import "./index.less";
 
-type ModalType = "create" | "join";
+type ModalType = "create" | "join" | "edit";
 type TeamCard = {
   id: string;
   name: string;
@@ -48,6 +58,7 @@ type ActionModalValues = {
 
 type ActionModalProps = {
   type: ModalType;
+  initialValues?: ActionModalValues;
   onClose: () => void;
   onDone: (payload: { name: string; destination?: string; inviteCode?: string }) => Promise<void>;
   isSubmitting: boolean;
@@ -134,8 +145,9 @@ const mapTeamCard = (team: TeamCardResponse, index: number): TeamCard => ({
   inviteCode: team.inviteCode || String(team.teamId),
 });
 
-function ActionModal({ type, onClose, onDone, isSubmitting }: ActionModalProps) {
+function ActionModal({ type, initialValues, onClose, onDone, isSubmitting }: ActionModalProps) {
   const isCreate = type === "create";
+  const isEdit = type === "edit";
   const [form] = Form.useForm<ActionModalValues>();
 
   const submitModal = async (values: ActionModalValues) => {
@@ -152,7 +164,7 @@ function ActionModal({ type, onClose, onDone, isSubmitting }: ActionModalProps) 
       className="my-teams-modal"
       confirmLoading={isSubmitting}
       destroyOnHidden
-      okText={isSubmitting ? "处理中" : isCreate ? "创建团队" : "加入团队"}
+      okText={isSubmitting ? "处理中" : isEdit ? "保存修改" : isCreate ? "创建团队" : "加入团队"}
       open
       title={null}
       width={460}
@@ -160,12 +172,12 @@ function ActionModal({ type, onClose, onDone, isSubmitting }: ActionModalProps) 
       onOk={() => form.submit()}
     >
       <div className="my-teams-modal__content">
-        <div className="my-teams-modal__icon">{isCreate ? <Users size={26} /> : <UserPlus size={26} />}</div>
-        <h2>{isCreate ? "创建团队" : "加入团队"}</h2>
-        <p>{isCreate ? "给下一段旅程起个名字，稍后邀请伙伴一起完善计划。" : "输入邀请码或邀请链接，加入伙伴正在规划的旅程。"}</p>
+        <div className="my-teams-modal__icon">{isEdit ? <Pencil size={26} /> : isCreate ? <Users size={26} /> : <UserPlus size={26} />}</div>
+        <h2>{isEdit ? "修改团队信息" : isCreate ? "创建团队" : "加入团队"}</h2>
+        <p>{isEdit ? "更新团队名称和目的地，帮助伙伴快速识别这段旅程。" : isCreate ? "给下一段旅程起个名字，稍后邀请伙伴一起完善计划。" : "输入邀请码或邀请链接，加入伙伴正在规划的旅程。"}</p>
 
-        <Form form={form} layout="vertical" requiredMark={false} onFinish={submitModal}>
-          {isCreate ? (
+        <Form form={form} initialValues={initialValues} layout="vertical" requiredMark={false} onFinish={submitModal}>
+          {isCreate || isEdit ? (
             <>
               <Form.Item label="团队名称" name="name" rules={[{ required: true, min: 2, message: "请输入至少 2 个字符的团队名称" }]}>
                 <Input placeholder="例如：端午青岛轻旅行" />
@@ -255,10 +267,12 @@ export function MyTeamsPage() {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const [modalType, setModalType] = useState<ModalType | null>(null);
+  const [editingTeam, setEditingTeam] = useState<TeamCard | null>(null);
   const [overview, setOverview] = useState<MyTeamsOverviewResponse | null>(null);
   const [teamCards, setTeamCards] = useState<TeamCard[]>([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isModalSubmitting, setIsModalSubmitting] = useState(false);
+  const [modalApi, modalContextHolder] = Modal.useModal();
   const [overviewError, setOverviewError] = useState("");
   const hasTeams = teamCards.length > 0;
   const user = overview?.user;
@@ -294,13 +308,11 @@ export function MyTeamsPage() {
     </div>
   );
 
-  useEffect(() => {
-    loadOverview();
-  }, []);
-
-  const loadOverview = async () => {
+  const loadOverview = useCallback(async (silent = false) => {
     try {
-      setIsPageLoading(true);
+      if (!silent) {
+        setIsPageLoading(true);
+      }
       setOverviewError("");
 
       const response = await teamsService.getOverview();
@@ -311,9 +323,37 @@ export function MyTeamsPage() {
       setOverviewError(getErrorMessage(error));
       setTeamCards([]);
     } finally {
-      setIsPageLoading(false);
+      if (!silent) {
+        setIsPageLoading(false);
+      }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadOverview();
+  }, [loadOverview]);
+
+  useEffect(() => {
+    let disconnect: (() => void) | undefined;
+    let disposed = false;
+
+    connectTeamRealtime(() => loadOverview(true))
+      .then((cleanup) => {
+        if (disposed) {
+          cleanup();
+        } else {
+          disconnect = cleanup;
+        }
+      })
+      .catch(() => {
+        // REST 仍可正常使用，实时连接失败时等待下一次进入页面重连。
+      });
+
+    return () => {
+      disposed = true;
+      disconnect?.();
+    };
+  }, [loadOverview]);
 
   const handleInvite = async (inviteCode: string) => {
     try {
@@ -329,7 +369,37 @@ export function MyTeamsPage() {
     messageApi.info("正在进入团队空间");
   };
 
-  const closeModal = () => setModalType(null);
+  const closeModal = () => {
+    setModalType(null);
+    setEditingTeam(null);
+  };
+
+  const openEditModal = (team: TeamCard) => {
+    setEditingTeam(team);
+    setModalType("edit");
+  };
+
+  const handleDeleteTeam = (team: TeamCard) => {
+    modalApi.confirm({
+      centered: true,
+      className: "my-teams-delete-modal",
+      title: `删除“${team.name}”？`,
+      content: "团队成员、日期和行程数据都将被删除，此操作无法在页面中撤销。",
+      okText: "确认删除",
+      okType: "danger",
+      cancelText: "取消",
+      async onOk() {
+        try {
+          await teamsService.deleteTeam(team.id);
+          messageApi.success("团队已删除");
+          await loadOverview(true);
+        } catch (error) {
+          messageApi.error(getErrorMessage(error));
+          throw error;
+        }
+      },
+    });
+  };
 
   const handleLogout = async () => {
     try {
@@ -352,6 +422,12 @@ export function MyTeamsPage() {
           destination: destination || undefined,
         });
         messageApi.success("团队已创建");
+      } else if (modalType === "edit" && editingTeam) {
+        await teamsService.updateTeam(editingTeam.id, {
+          name,
+          destination: destination || undefined,
+        });
+        messageApi.success("团队信息已更新");
       } else {
         const joined = await teamsService.joinTeam({
           inviteCode: (inviteCode || "").trim().toUpperCase(),
@@ -361,7 +437,7 @@ export function MyTeamsPage() {
       }
 
       closeModal();
-      await loadOverview();
+      await loadOverview(true);
     } catch (error) {
       messageApi.error(getErrorMessage(error));
     } finally {
@@ -372,6 +448,7 @@ export function MyTeamsPage() {
   return (
     <main className="my-teams-page">
       {contextHolder}
+      {modalContextHolder}
       <AppHeader
         title="我的团队"
         onCreateTeam={() => setModalType("create")}
@@ -466,12 +543,34 @@ export function MyTeamsPage() {
                         <div className="team-card__main">
                           <div className="team-card__title-row">
                             <h3>{team.name}</h3>
-                            <Button
-                              aria-label="更多团队操作"
-                              className="team-card__more-button"
-                              icon={<MoreHorizontal size={24} />}
-                              type="text"
-                            />
+                            {team.roleVariant === "owner" && (
+                              <Dropdown
+                                menu={{
+                                  items: [
+                                    { key: "edit", icon: <Pencil size={17} />, label: "修改团队信息" },
+                                    { type: "divider" },
+                                    { key: "delete", danger: true, icon: <Trash2 size={17} />, label: "删除团队" },
+                                  ],
+                                  onClick: ({ key }) => {
+                                    if (key === "edit") {
+                                      openEditModal(team);
+                                    } else {
+                                      handleDeleteTeam(team);
+                                    }
+                                  },
+                                }}
+                                overlayClassName="team-card-actions-menu"
+                                placement="bottomRight"
+                                trigger={["click"]}
+                              >
+                                <Button
+                                  aria-label="更多团队操作"
+                                  className="team-card__more-button"
+                                  icon={<MoreHorizontal size={24} />}
+                                  type="text"
+                                />
+                              </Dropdown>
+                            )}
                           </div>
                           <p className="team-card__meta">
                             <MapPin size={18} />
@@ -527,7 +626,15 @@ export function MyTeamsPage() {
         )}
       </div>
 
-      {modalType && <ActionModal type={modalType} onClose={closeModal} onDone={completeModal} isSubmitting={isModalSubmitting} />}
+      {modalType && (
+        <ActionModal
+          type={modalType}
+          initialValues={editingTeam ? { name: editingTeam.name, destination: editingTeam.destination } : undefined}
+          onClose={closeModal}
+          onDone={completeModal}
+          isSubmitting={isModalSubmitting}
+        />
+      )}
     </main>
   );
 }

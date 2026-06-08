@@ -31,6 +31,7 @@ export type ItineraryItem = {
   endTime?: string;
   durationMinutes?: number;
   note?: string;
+  photos?: string[];
   orderNum?: number;
   itemStatus?: number;
   version?: number;
@@ -57,6 +58,17 @@ export type ItineraryTimeline = {
   days: ItineraryDayGroup[];
 };
 
+export type SharedFinalItineraryTeam = ItineraryTeam & {
+  memberCount?: number;
+  totalMemberCount?: number;
+};
+
+export type SharedFinalItineraryView = {
+  team: SharedFinalItineraryTeam;
+  days: ItineraryDayGroup[];
+  version?: number;
+};
+
 export type CreateItineraryItemRequest = {
   itemDate: string;
   placeName: string;
@@ -69,6 +81,7 @@ export type CreateItineraryItemRequest = {
   endTime?: string;
   durationMinutes?: number;
   note?: string;
+  photos?: string[];
 };
 
 export type UpdateItineraryItemRequest = Partial<CreateItineraryItemRequest>;
@@ -109,13 +122,16 @@ export type ItinerarySocketSnapshot = {
 };
 
 export type ItinerarySocketEventName =
+  | "trip:member_online"
+  | "trip:member_offline"
   | "itinerary:item_added"
   | "itinerary:item_updated"
   | "itinerary:item_deleted"
   | "itinerary:item_moved"
   | "itinerary:locked"
   | "itinerary:unlocked"
-  | "itinerary:conflict_detected";
+  | "itinerary:conflict_detected"
+  | "presence:member_editing";
 
 export type ItineraryRealtimeActor = {
   userId: number;
@@ -158,6 +174,7 @@ export type AddItineraryItemCommand = {
   endTime?: string | null;
   durationMinutes?: number;
   note?: string;
+  photos?: string[];
 };
 
 export type UpdateItineraryItemCommand = {
@@ -180,6 +197,7 @@ export type ItineraryRealtimeConnection = {
   moveItem: (payload: MoveItineraryItemCommand) => Promise<ItineraryCommandAck>;
   lock: () => Promise<ItineraryCommandAck>;
   unlock: () => Promise<ItineraryCommandAck>;
+  markEditing: (targetType: string, targetId: string | number) => Promise<ItineraryCommandAck>;
   sync: (force?: boolean) => Promise<void>;
   disconnect: () => void;
 };

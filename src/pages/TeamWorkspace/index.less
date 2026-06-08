@@ -641,15 +641,21 @@
 }
 
 .ai-summary-primary > span {
-  display: block;
-  color: var(--tt-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  color: #087c6a;
+  background: #e6f7f4;
+  border: 1px solid rgba(0, 168, 137, 0.16);
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .ai-summary-primary > strong {
   display: block;
-  margin-top: 7px;
+  margin-top: 10px;
   color: #087c6a;
   font-size: 23px;
   font-weight: 800;
@@ -662,30 +668,76 @@
   line-height: 1.65;
 }
 
-.ai-summary-line {
+.ai-summary-section {
   margin-top: 14px;
-  padding: 3px 4px 3px 16px;
-  border-left: 3px solid;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--tt-border-light);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
-.ai-summary-line--distribution {
-  border-left-color: #3b82f6;
-}
-
-.ai-summary-line--difference {
-  border-left-color: #f59e0b;
-}
-
-.ai-summary-line strong {
+.ai-summary-section > strong {
+  display: block;
   color: var(--tt-text);
   font-size: 14px;
   font-weight: 800;
 }
 
-.ai-summary-line p {
-  margin: 5px 0 0;
+.ai-summary-section p,
+.ai-summary-section ul {
+  margin: 8px 0 0;
   color: var(--tt-text-secondary);
-  line-height: 1.55;
+  line-height: 1.6;
+}
+
+.ai-summary-section ul {
+  display: grid;
+  gap: 7px;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-summary-section li {
+  position: relative;
+  padding-left: 16px;
+}
+
+.ai-summary-section li::before {
+  position: absolute;
+  top: 0.72em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  background: #00a889;
+  border-radius: 50%;
+  content: "";
+}
+
+.ai-summary-section > b {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-top: 9px;
+  padding: 0 12px;
+  color: #087c6a;
+  background: #f0fbf8;
+  border: 1px solid rgba(0, 168, 137, 0.18);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ai-summary-section--advice {
+  border-left: 4px solid #00a889;
+}
+
+.ai-summary-section--risk {
+  border-left: 4px solid #f97316;
+}
+
+.ai-summary-section--rules {
+  border-left: 4px solid #3b82f6;
 }
 
 .ai-note {

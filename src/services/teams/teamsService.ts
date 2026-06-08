@@ -8,11 +8,13 @@ import {
   MyAvailabilityResponse,
   MyTeamsOverviewResponse,
   SaveAvailabilityRequest,
+  ShareLinkResponse,
   TeamCalendarResponse,
   TeamCardResponse,
   TeamDetailResponse,
   TeamMembersResponse,
   TeamPortraitResponse,
+  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./types";
 
@@ -54,8 +56,26 @@ export const teamsService = {
     return unwrapApiResponse(response.data);
   },
 
+  updateTeam: async (teamId: string | number, request: UpdateTeamRequest): Promise<TeamCardResponse> => {
+    const response = await apiClient.put<TeamCardResponse | ApiResponse<TeamCardResponse>>(`/api/v1/teams/${teamId}`, request);
+
+    return unwrapApiResponse(response.data);
+  },
+
+  deleteTeam: async (teamId: string | number): Promise<void> => {
+    const response = await apiClient.delete<ApiResponse<unknown> | unknown>(`/api/v1/teams/${teamId}`);
+
+    unwrapApiResponse(response.data);
+  },
+
   joinTeam: async (request: JoinTeamRequest): Promise<JoinTeamResponse> => {
     const response = await apiClient.post<JoinTeamResponse | ApiResponse<JoinTeamResponse>>("/api/v1/teams/join", request);
+
+    return unwrapApiResponse(response.data);
+  },
+
+  createShareLink: async (teamId: string | number): Promise<ShareLinkResponse> => {
+    const response = await apiClient.post<ShareLinkResponse | ApiResponse<ShareLinkResponse>>(`/api/v1/teams/${teamId}/share`);
 
     return unwrapApiResponse(response.data);
   },

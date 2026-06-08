@@ -3,7 +3,7 @@ import { getRuntimeBackendOrigin } from "../runtimeBackend";
 import { ApiError, toApiError } from "./errors";
 
 const DEFAULT_API_BASE_URL = "https://cricketchief.com";
-const getApiBaseUrl = () => getRuntimeBackendOrigin() || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+const getApiBaseUrl = () => getRuntimeBackendOrigin("http") || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
 const AUTH_TOKEN_STORAGE_KEY = "teamtrip-auth-token";
 const AUTH_REFRESH_TOKEN_STORAGE_KEY = "teamtrip-refresh-token";
 const AUTH_USER_STORAGE_KEY = "teamtrip-auth-user";

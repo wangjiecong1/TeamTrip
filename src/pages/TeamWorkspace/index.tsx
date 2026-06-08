@@ -65,6 +65,20 @@ const getErrorMessage = (error: unknown) => {
   return "请求失败，请稍后重试";
 };
 
+const getShareErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) {
+    if (error.status === 400) {
+      return "请先锁定最终行程后再分享";
+    }
+
+    if (error.status === 403) {
+      return "仅团队创建者可以生成最终行程单分享链接";
+    }
+  }
+
+  return getErrorMessage(error);
+};
+
 const getStatusVariant = (status = ""): StatusTagVariant => {
   if (status.includes("过期") || status.includes("归档")) {
     return "expired";
@@ -133,6 +147,44 @@ const getTeamStyleTitle = (keywords: string[]) => {
 
   return selectedKeywords.length ? `${selectedKeywords.join("")}型` : "共同探索型";
 };
+
+const normalizeAiSummaryList = (value?: string[] | string | null) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => item.trim()).filter(Boolean);
+  }
+
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(/[\n；;]+/)
+    .map((item) => item.replace(/^[-•\s]+/, "").trim())
+    .filter(Boolean);
+};
+
+const getRiskLevelText = (riskLevel?: string | null) => {
+  if (!riskLevel) {
+    return "暂无";
+  }
+
+  const normalizedRiskLevel = riskLevel.toLowerCase();
+
+  if (normalizedRiskLevel === "low") {
+    return "低";
+  }
+
+  if (normalizedRiskLevel === "medium") {
+    return "中";
+  }
+
+  if (normalizedRiskLevel === "high") {
+    return "高";
+  }
+
+  return riskLevel;
+};
+
 
 const formatRange = (range?: DateRange | null) => {
   if (!range) {
@@ -280,7 +332,15 @@ export function TeamWorkspacePage() {
     [portrait?.dimensions],
   );
   const portraitKeywords = portrait?.keywords?.length ? portrait.keywords : [];
-  const teamStyleTitle = getTeamStyleTitle(portraitKeywords);
+  const teamStyleTitle = portrait?.teamStyle || getTeamStyleTitle(portraitKeywords);
+  const teamStyleDesc = portrait?.teamStyleDesc || portrait?.summaryText || "成员完成 Trip-BTI 后会生成团队旅行画像。";
+  const planningAdviceList = normalizeAiSummaryList(portrait?.planningAdvice);
+  const schedulingRuleList = normalizeAiSummaryList(portrait?.schedulingRules);
+  const riskLevelText = getRiskLevelText(portrait?.riskLevel);
+  const riskDesc = portrait?.riskDesc ||
+    (riskyDimensions[0]?.suggestionText ||
+      (riskyDimensions.length ? `${riskyDimensions.length} 个维度存在差异，建议保留自由活动时间。` : "当前暂无明显分歧。"));
+  const aiSummaryTime = portrait?.generatedAt || portrait?.computedAt;
   const calendarValue = useMemo(() => dayjs(`${yearMonth}-01`), [yearMonth]);
   const calendarDayByDate = useMemo(() => new Map((calendar?.days || []).map((day) => [day.date, day])), [calendar?.days]);
   const selectedRanges = useMemo<DateRange[]>(() => {
@@ -381,10 +441,25 @@ export function TeamWorkspacePage() {
     }
   };
 
+  const shareFinalItineraryMutation = useMutation({
+    mutationFn: () => teamsService.createShareLink(teamId),
+    onSuccess: (share) => {
+      if (!share.token) {
+        messageApi.error("分享链接生成失败，请稍后重试");
+        return;
+      }
+
+      window.open(`/final-itinerary/${encodeURIComponent(share.token)}`, "_blank", "noopener,noreferrer");
+    },
+    onError: (error) => messageApi.error(getShareErrorMessage(error)),
+  });
+
   const isOwner = detail?.myRole === "owner";
   const isFinalDateMutating = lockDatesMutation.isPending || unlockDatesMutation.isPending;
   const canOpenFinalDateModal = Boolean(isOwner && detail?.canLockDates) && !isFinalDateMutating;
   const canUnlockFinalDate = Boolean(isOwner && detail?.canUnlockDates) && !isFinalDateMutating;
+  const hasLockedItinerary = Boolean(detail?.locked);
+  const canShareFinalItinerary = Boolean(hasLockedItinerary && isOwner);
 
   const openFinalDateModal = () => {
     setFinalDateRangeValue(getRangePickerValue(finalDateRange || lockCandidate));
@@ -489,8 +564,9 @@ export function TeamWorkspacePage() {
         <>
         <TeamSidebar
           activeItem="workspace"
+          finalItineraryEnabled={canShareFinalItinerary}
+          finalItineraryLoading={shareFinalItineraryMutation.isPending}
           hasFinalTravelDates={hasFinalTravelDates}
-          inviteCode={detail?.inviteCode}
           teamId={teamId}
           user={{
             avatar: currentMember?.avatar,
@@ -498,7 +574,9 @@ export function TeamWorkspacePage() {
             role: currentMember?.role || detail?.myRole,
             roleText: currentMember?.roleText,
           }}
+          onBlockedFinalItinerary={() => messageApi.warning(hasLockedItinerary ? "仅团队创建者可以生成最终行程单分享链接" : "请先在行程规划页锁定行程")}
           onBlockedItinerary={() => messageApi.warning("请先锁定最终出行日期")}
+          onOpenFinalItinerary={() => shareFinalItineraryMutation.mutate()}
           onLogout={handleLogout}
         />
 
@@ -716,34 +794,33 @@ export function TeamWorkspacePage() {
                       AI 团队总结
                     </h4>
                     <article className="ai-summary-primary">
-                      <span>团队风格</span>
-                      <strong>{teamStyleTitle}</strong>
-                      <p>{portrait?.summaryText || "成员完成 Trip-BTI 后会生成团队旅行画像。"}</p>
+                      <span>主结论卡</span>
+                      <strong>团队风格：{teamStyleTitle}</strong>
+                      <p>{teamStyleDesc}</p>
                     </article>
-                    <article className="ai-summary-line ai-summary-line--distribution">
-                      <div>
-                        <strong>人格分布</strong>
-                        <p>
-                          {portrait?.archetypeDistribution?.length
-                            ? portrait.archetypeDistribution
-                                .slice(0, 3)
-                                .map((item) => `${item.name} ${item.count} 人`)
-                                .join("，")
-                            : "暂无足够成员数据"}
-                        </p>
-                      </div>
+                    <article className="ai-summary-section ai-summary-section--advice">
+                      <strong>规划建议</strong>
+                      {planningAdviceList.length ? (
+                        <ul>
+                          {planningAdviceList.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>暂无规划建议。</p>
+                      )}
                     </article>
-                    <article className="ai-summary-line ai-summary-line--difference">
-                      <div>
-                        <strong>分歧提示</strong>
-                        <p>
-                          {riskyDimensions[0]?.suggestionText ||
-                            (riskyDimensions.length ? `${riskyDimensions.length} 个维度存在差异，建议保留自由活动时间。` : "当前暂无明显分歧。")}
-                        </p>
-                      </div>
+                    <article className="ai-summary-section ai-summary-section--risk">
+                      <strong>分歧风险</strong>
+                      <b>{riskLevelText}</b>
+                      <p>{riskDesc}</p>
+                    </article>
+                    <article className="ai-summary-section ai-summary-section--rules">
+                      <strong>推荐规划规则</strong>
+                      <p>{schedulingRuleList.length ? schedulingRuleList.join(" / ") : "暂无推荐规划规则。"}</p>
                     </article>
                     <div className="ai-note" role="note">
-                      画像数据约 30 分钟自动更新
+                      {aiSummaryTime ? `由 ${portrait?.llmProvider || "AI"} 生成 · ${aiSummaryTime}` : "画像数据约 30 分钟自动更新"}
                     </div>
                   </div>
 

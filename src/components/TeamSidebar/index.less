@@ -93,6 +93,29 @@
 
 .workspace-nav__item.disabled {
   color: #94a3b8;
+  background: rgba(241, 245, 249, 0.72);
+  cursor: not-allowed;
+}
+
+.workspace-nav__item.disabled:hover {
+  color: #94a3b8;
+  background: rgba(241, 245, 249, 0.72);
+}
+
+.workspace-nav__item.loading {
+  color: #008f82;
+  background: var(--tt-primary-soft);
+  cursor: wait;
+}
+
+.workspace-nav__loading-icon {
+  animation: workspace-nav-spin 900ms linear infinite;
+}
+
+@keyframes workspace-nav-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .workspace-sidebar__user {

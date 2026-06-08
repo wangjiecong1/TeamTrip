@@ -21,7 +21,7 @@
 }
 
 .backend-debug-popover {
-  width: 300px;
+  width: 320px;
 }
 
 .backend-debug-popover__title {
@@ -36,9 +36,31 @@
   line-height: 1.6;
 }
 
+.backend-debug-popover__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.backend-debug-popover__field + .backend-debug-popover__field {
+  margin-top: 14px;
+}
+
+.backend-debug-popover__field label {
+  color: var(--tt-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .backend-debug-popover .ant-input,
 .backend-debug-popover .ant-input-outlined {
   border-radius: 12px;
+}
+
+.backend-debug-popover .ant-input:focus,
+.backend-debug-popover .ant-input-focused {
+  border-color: #00a889;
+  box-shadow: 0 0 0 3px rgba(0, 168, 137, 0.12);
 }
 
 .backend-debug-popover__preview {

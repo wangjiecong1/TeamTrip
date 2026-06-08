@@ -16,7 +16,7 @@ import {
 
 const DEFAULT_API_BASE_URL = "https://cricketchief.com";
 const COMMAND_TIMEOUT_MS = 8_000;
-const SERVER_EVENT_NAMES: ItinerarySocketEventName[] = [
+const FRAME_EVENT_NAMES: ItinerarySocketEventName[] = [
   "itinerary:item_added",
   "itinerary:item_updated",
   "itinerary:item_deleted",
@@ -55,6 +55,7 @@ type ItineraryRealtimeOptions = {
   onEvent: (eventName: ItinerarySocketEventName, frame: ItineraryRealtimeFrame) => void;
   onSnapshot?: (snapshot: ItinerarySocketSnapshot) => void;
   onOnlineMembersChange?: (members: ItineraryOnlineMember[]) => void;
+  onPresenceEditing?: (data: { tripId?: string | number; userId?: string | number; targetType?: string; targetId?: string | number }) => void;
   onVersionConflict?: (frame: ItineraryRealtimeFrame) => void;
   onPersonalError?: (frame: ItineraryRealtimeFrame) => void;
   onCommandRejected?: (ack: FailedAck) => void;
@@ -65,7 +66,7 @@ type ItineraryRealtimeOptions = {
 const activeSockets = new Set<Socket>();
 
 const getSocketUrl = () => {
-  const runtimeBackendOrigin = getRuntimeBackendOrigin();
+  const runtimeBackendOrigin = getRuntimeBackendOrigin("socket");
 
   if (runtimeBackendOrigin) {
     return runtimeBackendOrigin;
@@ -127,6 +128,7 @@ export const connectItineraryRealtime = ({
   onEvent,
   onSnapshot,
   onOnlineMembersChange,
+  onPresenceEditing,
   onVersionConflict,
   onPersonalError,
   onCommandRejected,
@@ -285,14 +287,39 @@ export const connectItineraryRealtime = ({
     target.io.on("reconnect_attempt", () => onStatusChange?.("connecting"));
     target.on("trip:member_online", (data: { onlineMembers?: ItineraryOnlineMember[] }) => {
       onOnlineMembersChange?.(data.onlineMembers || []);
+      onEvent("trip:member_online", {
+        type: "trip:member_online",
+        code: 0,
+        occurredAt: new Date().toISOString(),
+        data,
+      });
     });
     target.on("trip:member_offline", (data: { onlineMembers?: ItineraryOnlineMember[] }) => {
       onOnlineMembersChange?.(data.onlineMembers || []);
+      onEvent("trip:member_offline", {
+        type: "trip:member_offline",
+        code: 0,
+        occurredAt: new Date().toISOString(),
+        data,
+      });
+    });
+    target.on("presence:member_editing", (data: { tripId?: string | number; userId?: string | number; targetType?: string; targetId?: string | number }) => {
+      if (data.tripId !== undefined && String(data.tripId) !== normalizedTripId) {
+        return;
+      }
+
+      onPresenceEditing?.(data);
+      onEvent("presence:member_editing", {
+        type: "presence:member_editing",
+        code: 0,
+        occurredAt: new Date().toISOString(),
+        data,
+      });
     });
     target.on("personal:version_conflict", handleVersionConflict);
     target.on("personal:error", handlePersonalError);
 
-    for (const eventName of SERVER_EVENT_NAMES) {
+    for (const eventName of FRAME_EVENT_NAMES) {
       target.on(eventName, (frame: ItineraryRealtimeFrame) => handleServerEvent(eventName, frame));
     }
   };
@@ -304,10 +331,11 @@ export const connectItineraryRealtime = ({
     target.io.off("reconnect_attempt");
     target.off("trip:member_online");
     target.off("trip:member_offline");
+    target.off("presence:member_editing");
     target.off("personal:version_conflict", handleVersionConflict);
     target.off("personal:error", handlePersonalError);
 
-    for (const eventName of SERVER_EVENT_NAMES) {
+    for (const eventName of FRAME_EVENT_NAMES) {
       target.off(eventName);
     }
   };
@@ -443,6 +471,47 @@ export const connectItineraryRealtime = ({
     });
   };
 
+  const sendTripCommand = async <T extends Record<string, unknown>>(
+    eventName: string,
+    payload: T,
+  ): Promise<ItineraryCommandAck> => {
+    await roomReady;
+
+    if (!socket?.connected || disposed) {
+      throw new Error("实时连接未就绪，请稍后重试");
+    }
+
+    return new Promise<ItineraryCommandAck>((resolve, reject) => {
+      socket?.timeout(COMMAND_TIMEOUT_MS).emit(
+        eventName,
+        {
+          clientEventId: createClientEventId(),
+          tripId: wireTripId,
+          ...payload,
+        },
+        (error: Error | null, ack?: ItineraryCommandAck) => {
+          if (error) {
+            reject(new Error("操作确认超时，请检查网络后重试"));
+            return;
+          }
+
+          if (!ack?.ok) {
+            const failedAck = ack || { ok: false, reason: "UNKNOWN_ERROR" };
+            onCommandRejected?.(failedAck);
+            reject(new Error(getAckError(failedAck)));
+            return;
+          }
+
+          if (Number.isFinite(Number(ack.serverVersion))) {
+            commandVersion = Math.max(commandVersion, Number(ack.serverVersion));
+          }
+
+          resolve(ack);
+        },
+      );
+    });
+  };
+
   const disconnect = () => {
     disposed = true;
     rejectReady?.(new Error("实时连接已关闭"));
@@ -467,9 +536,19 @@ export const connectItineraryRealtime = ({
     addItem: (payload: AddItineraryItemCommand) => sendCommand("itinerary:item_add", payload),
     updateItem: (payload: UpdateItineraryItemCommand) => sendCommand("itinerary:item_update", payload),
     deleteItem: (itemId: string | number) => sendCommand("itinerary:item_delete", { itemId }),
-    moveItem: (payload: MoveItineraryItemCommand) => sendCommand("itinerary:item_move", payload),
-    lock: () => sendCommand("itinerary:lock", {}),
-    unlock: () => sendCommand("itinerary:unlock", {}),
+    moveItem: (payload: MoveItineraryItemCommand) =>
+      sendCommand("itinerary:item_move", {
+        itemId: payload.itemId,
+        fromDayId: payload.fromDayId,
+        toDayId: payload.toDayId,
+        toIndex: payload.toIndex,
+        date: payload.toDayId,
+        orderedItemIds: payload.orderedItemIds,
+      }),
+    lock: () => sendTripCommand("itinerary:lock", {}),
+    unlock: () => sendTripCommand("itinerary:unlock", {}),
+    markEditing: (targetType: string, targetId: string | number) =>
+      sendTripCommand("presence:editing", { targetType, targetId }),
     sync: syncTrip,
     disconnect,
   };

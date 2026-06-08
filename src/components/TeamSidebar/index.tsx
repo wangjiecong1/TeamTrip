@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Layout } from "antd";
-import { CalendarCheck, ChevronDown, ClipboardCheck, Grid2X2, Settings } from "lucide-react";
+import { CalendarCheck, ChevronDown, ClipboardCheck, Grid2X2, LoaderCircle, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import avatarFallback from "../../../assets/common/app-header-user-avatar.svg";
 import { BrandMark } from "../BrandMark";
@@ -22,10 +22,13 @@ type TeamSidebarUser = {
 type TeamSidebarProps = {
   activeItem: TeamSidebarItem;
   teamId: string;
-  inviteCode?: string;
   hasFinalTravelDates?: boolean;
+  finalItineraryEnabled?: boolean;
+  finalItineraryLoading?: boolean;
   user?: TeamSidebarUser;
   onBlockedItinerary?: () => void;
+  onBlockedFinalItinerary?: () => void;
+  onOpenFinalItinerary?: () => void | Promise<void>;
   onLogout?: () => void | Promise<void>;
 };
 
@@ -52,10 +55,13 @@ const getRoleText = (user?: TeamSidebarUser) => {
 export function TeamSidebar({
   activeItem,
   teamId,
-  inviteCode,
   hasFinalTravelDates = true,
+  finalItineraryEnabled = false,
+  finalItineraryLoading = false,
   user,
   onBlockedItinerary,
+  onBlockedFinalItinerary,
+  onOpenFinalItinerary,
   onLogout,
 }: TeamSidebarProps) {
   const navigate = useNavigate();
@@ -73,7 +79,7 @@ export function TeamSidebar({
       key: "final" as const,
       label: "最终行程单",
       icon: ClipboardCheck,
-      externalPath: `/final-itinerary/${inviteCode || teamId}`,
+      requiresLockedItinerary: true,
     },
     { key: "settings" as const, label: "团队设置", icon: Settings },
   ];
@@ -104,22 +110,36 @@ export function TeamSidebar({
       </div>
 
       <nav className="workspace-nav">
-        {navItems.map(({ key, label, icon: Icon, path, externalPath, requiresFinalDates }) => {
-          const isBlocked = Boolean(requiresFinalDates && !hasFinalTravelDates && key !== activeItem);
+        {navItems.map(({ key, label, icon: Icon, path, requiresFinalDates, requiresLockedItinerary }) => {
+          const isItineraryBlocked = Boolean(requiresFinalDates && !hasFinalTravelDates && key !== activeItem);
+          const isFinalBlocked = Boolean(requiresLockedItinerary && !finalItineraryEnabled);
+          const isBlocked = isItineraryBlocked || isFinalBlocked;
+          const isLoading = key === "final" && finalItineraryLoading;
 
           return (
             <button
-              className={`workspace-nav__item ${key === activeItem ? "active" : ""} ${isBlocked ? "disabled" : ""}`}
+              aria-busy={isLoading || undefined}
+              aria-disabled={isBlocked || isLoading || undefined}
+              className={`workspace-nav__item ${key === activeItem ? "active" : ""} ${isBlocked ? "disabled" : ""} ${isLoading ? "loading" : ""}`}
               key={key}
               type="button"
               onClick={() => {
-                if (isBlocked) {
+                if (isLoading) {
+                  return;
+                }
+
+                if (isItineraryBlocked) {
                   onBlockedItinerary?.();
                   return;
                 }
 
-                if (externalPath) {
-                  window.open(externalPath, "_blank", "noopener,noreferrer");
+                if (key === "final") {
+                  if (isFinalBlocked) {
+                    onBlockedFinalItinerary?.();
+                    return;
+                  }
+
+                  void onOpenFinalItinerary?.();
                   return;
                 }
 
@@ -128,8 +148,8 @@ export function TeamSidebar({
                 }
               }}
             >
-              <Icon size={20} />
-              <span className="workspace-nav__item-label">{label}</span>
+              {isLoading ? <LoaderCircle className="workspace-nav__loading-icon" size={20} /> : <Icon size={20} />}
+              <span className="workspace-nav__item-label">{isLoading ? "生成中..." : label}</span>
             </button>
           );
         })}

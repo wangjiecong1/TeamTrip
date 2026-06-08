@@ -19,6 +19,8 @@ export type {
   ItineraryTimeline,
   MoveItineraryItemCommand,
   ReorderItineraryRequest,
+  SharedFinalItineraryTeam,
+  SharedFinalItineraryView,
   UpdateItineraryItemCommand,
   UpdateItineraryItemRequest,
 } from "./types";

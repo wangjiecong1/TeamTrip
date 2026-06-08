@@ -187,14 +187,14 @@ export function TeamWorkspaceSkeleton() {
                   <Skeleton active paragraph={{ rows: 2, width: ["96%", "78%"] }} title={false} />
                 </article>
 
-                {Array.from({ length: 2 }).map((_, index) => (
+                {Array.from({ length: 3 }).map((_, index) => (
                   <article
-                    className={`ai-summary-line ${
-                      index === 0 ? "ai-summary-line--distribution" : "ai-summary-line--difference"
+                    className={`ai-summary-section ${
+                      index === 0 ? "ai-summary-section--advice" : index === 1 ? "ai-summary-section--risk" : "ai-summary-section--rules"
                     }`}
                     key={index}
                   >
-                    <Skeleton.Input active size="small" style={line(index === 0 ? 68 : 62, 16, 4)} />
+                    <Skeleton.Input active size="small" style={line(index === 0 ? 68 : 82, 16, 4)} />
                     <Skeleton.Input active size="small" style={line(index === 0 ? "62%" : "74%", 15, 4)} />
                   </article>
                 ))}

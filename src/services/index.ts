@@ -13,6 +13,8 @@ export type {
   TripBtiQuestionsResponse,
 } from "./tripBti";
 export { teamsService } from "./teams";
+export { connectTeamRealtime } from "./teams";
+export type { TeamRealtimeEventName, TeamRealtimeFrame } from "./teams";
 export type {
   ArchetypeSection,
   CreateTeamRequest,
@@ -25,6 +27,7 @@ export type {
   MyTeamsStatsSection,
   MyTeamsUserSection,
   SaveAvailabilityRequest,
+  ShareLinkResponse,
   TeamCalendarDay,
   TeamCalendarLevel,
   TeamCalendarResponse,
@@ -34,6 +37,7 @@ export type {
   TeamMembersResponse,
   TeamPortraitDimension,
   TeamPortraitResponse,
+  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./teams";
 export {
@@ -61,6 +65,8 @@ export type {
   ItineraryTimeline,
   MoveItineraryItemCommand,
   ReorderItineraryRequest,
+  SharedFinalItineraryTeam,
+  SharedFinalItineraryView,
   UpdateItineraryItemCommand,
   UpdateItineraryItemRequest,
 } from "./itinerary";

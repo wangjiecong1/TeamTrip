@@ -42,6 +42,7 @@ export type AmapSearchResult = {
   averageCost?: string;
   openingHours?: string;
   photoUrl?: string;
+  photos?: string[];
 };
 
 type GeocoderResult = {
@@ -108,26 +109,29 @@ const getMapErrorMessage = (error: unknown) => {
   return "请检查高德 Key、安全密钥和域名白名单";
 };
 
-const getPoiPhotoUrl = (photos: unknown) => {
+const getPoiPhotoUrls = (photos: unknown) => {
   if (!Array.isArray(photos)) {
-    return undefined;
+    return [];
   }
+
+  const urls: string[] = [];
 
   for (const photo of photos) {
     if (typeof photo === "string" && photo.trim()) {
-      return photo.trim();
+      urls.push(photo.trim());
+      continue;
     }
 
     if (photo && typeof photo === "object") {
       const url = (photo as { url?: unknown }).url;
 
       if (typeof url === "string" && url.trim()) {
-        return url.trim();
+        urls.push(url.trim());
       }
     }
   }
 
-  return undefined;
+  return urls;
 };
 
 export function ItineraryAmap({
@@ -262,6 +266,8 @@ export function ItineraryAmap({
             return [];
           }
 
+          const photos = getPoiPhotoUrls(poi.photos);
+
           return [{
             id: poi.id || `${searchRequest.id}-${index}`,
             name: poi.name || searchRequest.keyword,
@@ -271,7 +277,8 @@ export function ItineraryAmap({
               lng: position[0],
               lat: position[1],
             },
-            photoUrl: getPoiPhotoUrl(poi.photos),
+            photoUrl: photos[0],
+            photos,
           }];
         });
 
