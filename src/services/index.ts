@@ -37,7 +37,6 @@ export type {
   TeamMembersResponse,
   TeamPortraitDimension,
   TeamPortraitResponse,
-  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./teams";
 export {

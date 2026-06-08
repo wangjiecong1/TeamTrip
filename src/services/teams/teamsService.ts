@@ -14,7 +14,6 @@ import {
   TeamDetailResponse,
   TeamMembersResponse,
   TeamPortraitResponse,
-  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./types";
 
@@ -56,14 +55,8 @@ export const teamsService = {
     return unwrapApiResponse(response.data);
   },
 
-  updateTeam: async (teamId: string | number, request: UpdateTeamRequest): Promise<TeamCardResponse> => {
-    const response = await apiClient.put<TeamCardResponse | ApiResponse<TeamCardResponse>>(`/api/v1/teams/${teamId}`, request);
-
-    return unwrapApiResponse(response.data);
-  },
-
-  deleteTeam: async (teamId: string | number): Promise<void> => {
-    const response = await apiClient.delete<ApiResponse<unknown> | unknown>(`/api/v1/teams/${teamId}`);
+  leaveTeam: async (teamId: string | number): Promise<void> => {
+    const response = await apiClient.post<ApiResponse<unknown> | unknown>(`/api/v1/teams/${teamId}/leave`);
 
     unwrapApiResponse(response.data);
   },
@@ -129,6 +122,7 @@ export const teamsService = {
 
     return {
       ...portrait,
+      ...portrait.aiSummary,
       keywords: portrait.keywords || [],
       dimensions: (portrait.dimensions || []).map((dimension) => ({
         ...dimension,

@@ -51,8 +51,6 @@ export type CreateTeamRequest = {
   description?: string;
 };
 
-export type UpdateTeamRequest = CreateTeamRequest;
-
 export type JoinTeamRequest = {
   inviteCode: string;
 };
@@ -134,9 +132,7 @@ export type TeamPortraitArchetype = {
   ratio: number;
 };
 
-export type TeamPortraitResponse = {
-  memberCount: number;
-  summaryText?: string;
+export type TeamPortraitAiSummary = {
   teamStyle?: string | null;
   teamStyleDesc?: string | null;
   planningAdvice?: string[] | string | null;
@@ -146,6 +142,12 @@ export type TeamPortraitResponse = {
   source?: string | null;
   generatedAt?: string | null;
   llmProvider?: string | null;
+};
+
+export type TeamPortraitResponse = TeamPortraitAiSummary & {
+  memberCount: number;
+  summaryText?: string;
+  aiSummary?: TeamPortraitAiSummary | null;
   keywords: string[];
   archetypeDistribution?: TeamPortraitArchetype[];
   dimensions: TeamPortraitDimension[];

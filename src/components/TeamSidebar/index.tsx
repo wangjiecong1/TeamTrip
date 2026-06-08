@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Layout } from "antd";
-import { CalendarCheck, ChevronDown, ClipboardCheck, Grid2X2, LoaderCircle, Settings } from "lucide-react";
+import { CalendarCheck, ChevronDown, ClipboardCheck, Grid2X2, LoaderCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import avatarFallback from "../../../assets/common/app-header-user-avatar.svg";
 import { BrandMark } from "../BrandMark";
@@ -10,7 +10,7 @@ import "./index.less";
 
 const { Sider } = Layout;
 
-export type TeamSidebarItem = "workspace" | "itinerary" | "final" | "settings";
+export type TeamSidebarItem = "workspace" | "itinerary" | "final";
 
 type TeamSidebarUser = {
   avatar?: string | null;
@@ -81,7 +81,6 @@ export function TeamSidebar({
       icon: ClipboardCheck,
       requiresLockedItinerary: true,
     },
-    { key: "settings" as const, label: "团队设置", icon: Settings },
   ];
 
   return (
@@ -119,15 +118,11 @@ export function TeamSidebar({
           return (
             <button
               aria-busy={isLoading || undefined}
-              aria-disabled={isBlocked || isLoading || undefined}
+              aria-disabled={isBlocked || undefined}
               className={`workspace-nav__item ${key === activeItem ? "active" : ""} ${isBlocked ? "disabled" : ""} ${isLoading ? "loading" : ""}`}
               key={key}
               type="button"
               onClick={() => {
-                if (isLoading) {
-                  return;
-                }
-
                 if (isItineraryBlocked) {
                   onBlockedItinerary?.();
                   return;

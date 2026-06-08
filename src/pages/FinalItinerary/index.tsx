@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Image, Timeline } from "antd";
 import { useParams } from "react-router-dom";
 import { CalendarDays, Car, ChevronDown, ChevronRight, Footprints, MapPin, Share2, ShieldCheck, Users } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
@@ -19,6 +20,7 @@ type FinalStop = {
   tags: string[];
   address: string;
   note: string;
+  photos?: string[];
   transfer?: Transfer;
 };
 
@@ -40,7 +42,6 @@ type FinalItineraryData = {
   memberCount: number;
   dayCount: number;
   placeCount: number;
-  transportCount: number;
   summary: string;
   days: FinalDay[];
 };
@@ -78,6 +79,12 @@ const getDurationText = (startDate?: string | null, endDate?: string | null) => 
 
 const getItemTags = (item: ItineraryItem) => [item.poiType, item.startTime && item.endTime ? `${item.startTime} - ${item.endTime}` : ""].filter(Boolean) as string[];
 
+const normalizePhotos = (photos?: ItineraryItem["photos"] | null) => {
+  const urls = photos?.map((photo) => photo.trim()).filter(Boolean) || [];
+
+  return urls.length ? urls : undefined;
+};
+
 const mapSharedItinerary = (token: string, view: SharedFinalItineraryView): FinalItineraryData => {
   const team = view.team;
   const days = (view.days || []).map((day, index) => ({
@@ -91,6 +98,7 @@ const mapSharedItinerary = (token: string, view: SharedFinalItineraryView): Fina
       tags: getItemTags(item),
       address: item.address || "暂无详细地址",
       note: item.note || "待补充备注",
+      photos: normalizePhotos(item.photos),
     })),
   }));
   const placeCount = days.reduce((total, day) => total + day.stops.length, 0);
@@ -105,7 +113,6 @@ const mapSharedItinerary = (token: string, view: SharedFinalItineraryView): Fina
     memberCount: team.memberCount ?? team.totalMemberCount ?? 0,
     dayCount: days.length,
     placeCount,
-    transportCount: Math.max(0, placeCount - days.length),
     summary: `${team.destination || "这段旅程"}的最终行程已整理完成，团队成员可以按天查看地点安排。`,
     days,
   };
@@ -252,7 +259,6 @@ export function FinalItineraryPage() {
             <div className="final-stat-grid">
               <article><CalendarDays size={26} /><strong>{itinerary.dayCount}</strong><span>天行程</span></article>
               <article><MapPin size={26} /><strong>{itinerary.placeCount}</strong><span>个地点</span></article>
-              <article><Car size={26} /><strong>{itinerary.transportCount}</strong><span>次交通</span></article>
               <article><ShieldCheck size={26} /><strong>已锁定</strong><span>不可编辑</span></article>
             </div>
           </div>
@@ -274,34 +280,53 @@ export function FinalItineraryPage() {
               <span>{activeDay.date}（{activeDay.weekday}）</span>
             </header>
 
-            <div className="final-timeline">
-              {activeDay.stops.map((stop, index) => (
-                <article className="final-stop" key={stop.id}>
-                  <span className="final-stop__order">第 {index + 1} 站</span>
-                  <span className="final-stop__dot" />
-                  <div className="final-stop__thumb" />
-                  <div className="final-stop__body">
-                    <div className="final-stop__title">
-                      <h3>{stop.title}</h3>
-                      <div>{stop.tags.map((tag) => <StatusTag key={tag} variant="neutral">{tag}</StatusTag>)}</div>
-                    </div>
-                    <p className="final-stop__address"><MapPin size={15} />{stop.address}</p>
-                    <p className="final-stop__note">{stop.note}</p>
-                    {stop.transfer && (
-                      <button className="final-transfer" type="button">
-                        {stop.transfer.type === "步行" ? <Footprints size={18} /> : <Car size={18} />}
-                        {stop.transfer.type} {stop.transfer.duration} · {stop.transfer.distance}
-                        <ChevronDown size={17} />
-                      </button>
+            <Timeline
+              className="final-timeline"
+              items={activeDay.stops.map((stop, index) => ({
+                color: "#00a889",
+                children: (
+                  <article className="final-stop">
+                    <span className="final-stop__order">第 {index + 1} 站</span>
+                    {stop.photos?.length ? (
+                      <Image.PreviewGroup items={stop.photos}>
+                        <div className="final-stop__gallery">
+                          {stop.photos.slice(0, 3).map((photo, photoIndex) => (
+                            <Image
+                              alt={`${stop.title} 照片 ${photoIndex + 1}`}
+                              className="final-stop__photo"
+                              key={photo}
+                              preview={{ src: photo }}
+                              src={photo}
+                            />
+                          ))}
+                        </div>
+                      </Image.PreviewGroup>
+                    ) : (
+                      <div className="final-stop__thumb" />
                     )}
-                  </div>
-                  <a className="final-go-link" href={buildAmapUrl(stop)} target="_blank" rel="noreferrer">
-                    去这里
-                    <ChevronRight size={18} />
-                  </a>
-                </article>
-              ))}
-            </div>
+                    <div className="final-stop__body">
+                      <div className="final-stop__title">
+                        <h3>{stop.title}</h3>
+                        <div>{stop.tags.map((tag) => <StatusTag key={tag} variant="neutral">{tag}</StatusTag>)}</div>
+                      </div>
+                      <p className="final-stop__address"><MapPin size={15} />{stop.address}</p>
+                      <p className="final-stop__note">{stop.note}</p>
+                      {stop.transfer && (
+                        <button className="final-transfer" type="button">
+                          {stop.transfer.type === "步行" ? <Footprints size={18} /> : <Car size={18} />}
+                          {stop.transfer.type} {stop.transfer.duration} · {stop.transfer.distance}
+                          <ChevronDown size={17} />
+                        </button>
+                      )}
+                    </div>
+                    <a className="final-go-link" href={buildAmapUrl(stop)} target="_blank" rel="noreferrer">
+                      去这里
+                      <ChevronRight size={18} />
+                    </a>
+                  </article>
+                ),
+              }))}
+            />
           </section>
         </section>
       </div>

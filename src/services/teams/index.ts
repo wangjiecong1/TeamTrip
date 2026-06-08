@@ -24,6 +24,5 @@ export type {
   TeamPortraitArchetype,
   TeamPortraitDimension,
   TeamPortraitResponse,
-  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./types";

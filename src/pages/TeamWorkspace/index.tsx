@@ -72,7 +72,7 @@ const getShareErrorMessage = (error: unknown) => {
     }
 
     if (error.status === 403) {
-      return "仅团队创建者可以生成最终行程单分享链接";
+      return "暂无查看最终行程单权限";
     }
   }
 
@@ -161,6 +161,22 @@ const normalizeAiSummaryList = (value?: string[] | string | null) => {
     .split(/[\n；;]+/)
     .map((item) => item.replace(/^[-•\s]+/, "").trim())
     .filter(Boolean);
+};
+
+const formatAiSummaryText = (value?: string[] | string | null) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => item.trim()).filter(Boolean).join(" / ");
+  }
+
+  return value?.trim() || "";
+};
+
+const getAiSummarySourceText = (source?: string | null, provider?: string | null) => {
+  if (source === "ai") {
+    return `由 ${provider || "AI"} 生成`;
+  }
+
+  return source ? `来源：${source}` : "画像数据约 30 分钟自动更新";
 };
 
 const getRiskLevelText = (riskLevel?: string | null) => {
@@ -335,12 +351,13 @@ export function TeamWorkspacePage() {
   const teamStyleTitle = portrait?.teamStyle || getTeamStyleTitle(portraitKeywords);
   const teamStyleDesc = portrait?.teamStyleDesc || portrait?.summaryText || "成员完成 Trip-BTI 后会生成团队旅行画像。";
   const planningAdviceList = normalizeAiSummaryList(portrait?.planningAdvice);
-  const schedulingRuleList = normalizeAiSummaryList(portrait?.schedulingRules);
+  const schedulingRulesText = formatAiSummaryText(portrait?.schedulingRules);
   const riskLevelText = getRiskLevelText(portrait?.riskLevel);
   const riskDesc = portrait?.riskDesc ||
     (riskyDimensions[0]?.suggestionText ||
       (riskyDimensions.length ? `${riskyDimensions.length} 个维度存在差异，建议保留自由活动时间。` : "当前暂无明显分歧。"));
   const aiSummaryTime = portrait?.generatedAt || portrait?.computedAt;
+  const aiSummarySourceText = getAiSummarySourceText(portrait?.source, portrait?.llmProvider);
   const calendarValue = useMemo(() => dayjs(`${yearMonth}-01`), [yearMonth]);
   const calendarDayByDate = useMemo(() => new Map((calendar?.days || []).map((day) => [day.date, day])), [calendar?.days]);
   const selectedRanges = useMemo<DateRange[]>(() => {
@@ -382,6 +399,7 @@ export function TeamWorkspacePage() {
     mutationFn: (dateRanges: DateRange[]) => teamsService.saveAvailability(teamId, { dateRanges }),
     onSuccess: async () => {
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKey.detail(teamId) }),
         queryClient.invalidateQueries({ queryKey: queryKey.preparation(teamId) }),
         invalidateCalendarScope(),
         queryClient.invalidateQueries({ queryKey: queryKey.members(teamId) }),
@@ -459,7 +477,7 @@ export function TeamWorkspacePage() {
   const canOpenFinalDateModal = Boolean(isOwner && detail?.canLockDates) && !isFinalDateMutating;
   const canUnlockFinalDate = Boolean(isOwner && detail?.canUnlockDates) && !isFinalDateMutating;
   const hasLockedItinerary = Boolean(detail?.locked);
-  const canShareFinalItinerary = Boolean(hasLockedItinerary && isOwner);
+  const canShareFinalItinerary = hasLockedItinerary;
 
   const openFinalDateModal = () => {
     setFinalDateRangeValue(getRangePickerValue(finalDateRange || lockCandidate));
@@ -574,7 +592,7 @@ export function TeamWorkspacePage() {
             role: currentMember?.role || detail?.myRole,
             roleText: currentMember?.roleText,
           }}
-          onBlockedFinalItinerary={() => messageApi.warning(hasLockedItinerary ? "仅团队创建者可以生成最终行程单分享链接" : "请先在行程规划页锁定行程")}
+          onBlockedFinalItinerary={() => messageApi.warning(hasLockedItinerary ? "暂无查看最终行程单权限" : "请先在行程规划页锁定行程")}
           onBlockedItinerary={() => messageApi.warning("请先锁定最终出行日期")}
           onOpenFinalItinerary={() => shareFinalItineraryMutation.mutate()}
           onLogout={handleLogout}
@@ -817,10 +835,10 @@ export function TeamWorkspacePage() {
                     </article>
                     <article className="ai-summary-section ai-summary-section--rules">
                       <strong>推荐规划规则</strong>
-                      <p>{schedulingRuleList.length ? schedulingRuleList.join(" / ") : "暂无推荐规划规则。"}</p>
+                      <p>{schedulingRulesText || "暂无推荐规划规则。"}</p>
                     </article>
                     <div className="ai-note" role="note">
-                      {aiSummaryTime ? `由 ${portrait?.llmProvider || "AI"} 生成 · ${aiSummaryTime}` : "画像数据约 30 分钟自动更新"}
+                      {aiSummaryTime ? `${aiSummarySourceText} · ${aiSummaryTime}` : aiSummarySourceText}
                     </div>
                   </div>
 

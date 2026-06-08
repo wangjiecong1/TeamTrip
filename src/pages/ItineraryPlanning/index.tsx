@@ -146,7 +146,7 @@ const getShareErrorMessage = (error: unknown) => {
     }
 
     if (error.status === 403) {
-      return "仅团队创建者可以生成最终行程单分享链接";
+      return "暂无查看最终行程单权限";
     }
   }
 
@@ -373,6 +373,7 @@ function SortableStopItem({
       label: "删除",
       disabled: operationDisabled,
     },
+  ];
   const stopPhotoUrl = normalizePhotos(stop.photos)?.[0];
 
   return (
@@ -407,7 +408,7 @@ function SortableStopItem({
         <p><MapPin size={14} />{stop.address || "暂无详细地址"}</p>
         <small>
           {[stop.startTime && stop.endTime ? `${stop.startTime} - ${stop.endTime}` : "", stop.note].filter(Boolean).join(" · ") ||
-            "待补充时间和备注"}
+            "待补充备注"}
         </small>
       </div>
       <div className="itinerary-stop__meta">
@@ -980,7 +981,7 @@ export function ItineraryPlanningPage() {
       {modalContextHolder}
       <TeamSidebar
         activeItem="itinerary"
-        finalItineraryEnabled={Boolean(isItineraryLocked && detail?.myRole === "owner")}
+        finalItineraryEnabled={isItineraryLocked}
         finalItineraryLoading={shareFinalItineraryMutation.isPending}
         teamId={teamId}
         user={{
@@ -989,7 +990,7 @@ export function ItineraryPlanningPage() {
           role: currentMember?.role || detail?.myRole,
           roleText: currentMember?.roleText,
         }}
-        onBlockedFinalItinerary={() => messageApi.warning(isItineraryLocked ? "仅团队创建者可以生成最终行程单分享链接" : "请先锁定行程")}
+        onBlockedFinalItinerary={() => messageApi.warning(isItineraryLocked ? "暂无查看最终行程单权限" : "请先锁定行程")}
         onOpenFinalItinerary={() => shareFinalItineraryMutation.mutate()}
         onLogout={handleLogout}
       />

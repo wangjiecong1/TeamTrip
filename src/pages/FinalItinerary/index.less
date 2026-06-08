@@ -1,6 +1,6 @@
 .final-itinerary-page {
   min-height: 100vh;
-  padding: clamp(18px, 4vw, 74px) clamp(12px, 2.4vw, 20px);
+  padding: clamp(12px, 2.2vw, 36px) clamp(12px, 2.4vw, 20px);
   color: var(--tt-text);
   background:
     linear-gradient(180deg, rgba(232, 247, 255, 0.82), rgba(236, 250, 248, 0.78)),
@@ -26,33 +26,33 @@
 
 .final-itinerary-header {
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: clamp(14px, 2.4vw, 28px);
+  gap: 10px;
+  margin-bottom: clamp(8px, 1.2vw, 14px);
   flex-wrap: wrap;
 }
 
 .final-itinerary-brand {
-  gap: clamp(8px, 1vw, 12px);
+  gap: 8px;
   color: #102033;
-  font-size: clamp(18px, 2.4vw, 22px);
+  font-size: clamp(16px, 1.8vw, 19px);
   font-weight: 900;
 }
 
 .final-itinerary-brand .brand-mark {
-  width: clamp(32px, 3.6vw, 52px);
-  height: clamp(40px, 4.4vw, 62px);
+  width: clamp(28px, 2.8vw, 38px);
+  height: clamp(34px, 3.4vw, 46px);
 }
 
 .final-share-button {
-  gap: 8px;
-  height: clamp(36px, 4.4vw, 54px);
-  padding: 0 clamp(13px, 1.8vw, 22px);
+  gap: 6px;
+  height: clamp(32px, 3.2vw, 40px);
+  padding: 0 clamp(10px, 1.4vw, 16px);
   color: #008f82;
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(0, 168, 137, 0.48);
-  border-radius: clamp(9px, 1vw, 12px);
-  box-shadow: 0 8px 20px rgba(15, 35, 55, 0.06);
-  font-size: clamp(13px, 1.4vw, 18px);
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(15, 35, 55, 0.05);
+  font-size: clamp(12px, 1.2vw, 14px);
   font-weight: 800;
   cursor: pointer;
 }
@@ -249,21 +249,28 @@
 }
 
 .final-timeline {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(14px, 1.8vw, 22px);
-  padding-left: clamp(58px, 8vw, 130px);
+  margin: 0;
 }
 
-.final-timeline::before {
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: clamp(36px, 5vw, 96px);
-  width: 2px;
-  background: #00a889;
-  content: "";
+.final-timeline .ant-timeline-item {
+  padding-bottom: clamp(14px, 1.8vw, 22px);
+}
+
+.final-timeline .ant-timeline-item-last {
+  padding-bottom: 0;
+}
+
+.final-timeline .ant-timeline-item-content {
+  min-height: 0;
+}
+
+.final-timeline .ant-timeline-item-tail {
+  border-inline-start-color: #00a889;
+}
+
+.final-timeline .ant-timeline-item-head {
+  background: #fff;
+  border-width: 3px;
 }
 
 .final-stop {
@@ -272,7 +279,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: clamp(8px, 1.2vw, 18px);
-  padding: clamp(10px, 1.2vw, 14px);
+  padding: clamp(18px, 1.8vw, 24px) clamp(10px, 1.2vw, 14px) clamp(10px, 1.2vw, 14px);
   background: #fff;
   border: 1px solid var(--tt-border);
   border-radius: clamp(10px, 1.2vw, 14px);
@@ -282,6 +289,7 @@
   position: absolute;
   top: -10px;
   left: 14px;
+  display: inline-block;
   padding: 2px 10px;
   color: #008f82;
   background: var(--tt-primary-soft);
@@ -290,26 +298,48 @@
   font-weight: 800;
 }
 
-.final-stop__dot {
-  position: absolute;
-  top: 22px;
-  left: calc(clamp(36px, 5vw, 96px) - 6px);
-  width: clamp(10px, 1.2vw, 14px);
-  height: clamp(10px, 1.2vw, 14px);
-  background: #fff;
-  border: clamp(2px, 0.4vw, 4px) solid #00a889;
-  border-radius: 50%;
-}
-
-.final-stop__thumb {
+.final-stop__thumb,
+.final-stop__gallery {
   width: clamp(72px, 9vw, 150px);
   height: clamp(56px, 7vw, 94px);
   flex-shrink: 0;
+}
+
+.final-stop__thumb {
   background:
     linear-gradient(135deg, rgba(0, 168, 137, 0.08), rgba(59, 130, 246, 0.12)),
     #eef4f6;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
+}
+
+.final-stop__gallery {
+  display: grid;
+  grid-template-columns: 1fr 0.46fr;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 4px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.final-stop__gallery .ant-image {
+  min-width: 0;
+  min-height: 0;
+}
+
+.final-stop__gallery .ant-image:first-child {
+  grid-row: 1 / -1;
+}
+
+.final-stop__gallery .ant-image:nth-child(2):last-child {
+  grid-row: 1 / -1;
+}
+
+.final-stop__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .final-stop__body {
@@ -482,27 +512,12 @@
     gap: 4px;
   }
 
-  .final-timeline {
-    padding-left: 38px;
-    gap: 14px;
-  }
-
-  .final-timeline::before {
-    top: 8px;
-    bottom: 8px;
-    left: 18px;
-  }
-
   .final-stop {
-    padding: 12px 12px 12px 14px;
+    padding: 18px 12px 12px 14px;
   }
 
-  .final-stop__dot {
-    top: 18px;
-    left: calc(18px - 6px);
-  }
-
-  .final-stop__thumb {
+  .final-stop__thumb,
+  .final-stop__gallery {
     width: 80px;
     height: 64px;
   }
