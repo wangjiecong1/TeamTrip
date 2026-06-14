@@ -10,8 +10,8 @@ import {
   SmilePlus,
   UserPlus,
 } from "lucide-react";
-import { Button, Checkbox, Form, Input } from "antd";
-import { LockOutlined, MailOutlined, PhoneOutlined, UserOutlined } from "@ant-design/icons";
+import { Alert, Button, Checkbox, Form, Input } from "antd";
+import { EyeInvisibleOutlined, EyeOutlined, LockOutlined, MailOutlined, PhoneOutlined, UserOutlined } from "@ant-design/icons";
 import loginHeroApproved from "../../../assets/login-register/login-register-hero-approved.webp";
 import { BrandMark } from "../../components/BrandMark";
 import { FeatureItem } from "../../components/FeatureItem";
@@ -37,6 +37,8 @@ export function LoginRegisterPage() {
   const navigate = useNavigate();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [message, setMessage] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [formInstance] = Form.useForm<FormValues>();
   const hasValidAccessToken = authTokenStorage.isAccessTokenValid();
   const hasRefreshToken = Boolean(authTokenStorage.getRefresh());
@@ -110,6 +112,8 @@ export function LoginRegisterPage() {
   const switchMode = (nextMode: AuthMode) => {
     setAuthMode(nextMode);
     formInstance.resetFields();
+    setPasswordVisible(false);
+    setConfirmPasswordVisible(false);
     setMessage("");
   };
 
@@ -194,6 +198,15 @@ export function LoginRegisterPage() {
             <p>{isRegisterMode ? "注册 TeamTrip，和伙伴开始规划旅程" : "登录 TeamTrip，继续你的旅行计划"}</p>
           </div>
 
+          {message && (
+            <Alert
+              className="auth-alert"
+              message={message}
+              showIcon
+              type="error"
+            />
+          )}
+
           <div className="tabs" role="tablist" aria-label="登录方式">
             <button className="tab active" type="button" role="tab" aria-selected="true">
               账号密码登录
@@ -233,8 +246,20 @@ export function LoginRegisterPage() {
             name="password"
             rules={[silentRequiredRule]}
           >
-            <Input.Password
+            <Input
               prefix={<LockOutlined />}
+              suffix={
+                <button
+                  aria-label={passwordVisible ? "隐藏密码" : "显示密码"}
+                  className="password-visibility-button"
+                  tabIndex={-1}
+                  type="button"
+                  onClick={() => setPasswordVisible((visible) => !visible)}
+                >
+                  {passwordVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                </button>
+              }
+              type={passwordVisible ? "text" : "password"}
               placeholder="请输入密码"
               autoComplete={isRegisterMode ? "new-password" : "current-password"}
               aria-label="密码"
@@ -258,8 +283,20 @@ export function LoginRegisterPage() {
                 }),
               ]}
             >
-              <Input.Password
+              <Input
                 prefix={<LockOutlined />}
+                suffix={
+                  <button
+                    aria-label={confirmPasswordVisible ? "隐藏确认密码" : "显示确认密码"}
+                    className="password-visibility-button"
+                    tabIndex={-1}
+                    type="button"
+                    onClick={() => setConfirmPasswordVisible((visible) => !visible)}
+                  >
+                    {confirmPasswordVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                  </button>
+                }
+                type={confirmPasswordVisible ? "text" : "password"}
                 placeholder="请再次输入密码"
                 autoComplete="new-password"
                 aria-label="确认密码"
@@ -288,12 +325,6 @@ export function LoginRegisterPage() {
               我已阅读并同意 <a href="#">《用户协议》</a> 和 <a href="#">《隐私政策》</a>
             </Checkbox>
           </Form.Item>
-
-          {message && (
-            <p className="auth-message" role="alert">
-              {message}
-            </p>
-          )}
 
           <Form.Item className="auth-submit">
             <Button type="primary" htmlType="submit" block size="large" loading={isSubmitting}>

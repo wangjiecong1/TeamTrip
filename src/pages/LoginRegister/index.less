@@ -162,6 +162,15 @@
   margin-top: clamp(20px, 2.5vw, 32px);
 }
 
+.auth-alert {
+  margin-top: clamp(14px, 1.6vw, 20px);
+  border-radius: 12px;
+}
+
+.auth-alert + .tabs {
+  margin-top: clamp(14px, 1.6vw, 20px);
+}
+
 .login-card .auth-field.ant-form-item,
 .login-card .auth-field.ant-form-item-with-help {
   margin-bottom: clamp(14px, 1.8vw, 22px);
@@ -203,6 +212,21 @@
   color: var(--tt-primary);
   font-weight: 600;
   text-decoration: none;
+}
+
+.password-visibility-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #94a3b8;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.password-visibility-button:hover {
+  color: var(--tt-primary);
 }
 
 .card-heading {
@@ -252,14 +276,6 @@
   content: "";
   background: var(--tt-primary);
   border-radius: 999px 999px 0 0;
-}
-
-.auth-message {
-  margin: 4px 0 0;
-  color: var(--tt-danger);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.5;
 }
 
 .divider {

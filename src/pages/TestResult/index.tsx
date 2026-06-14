@@ -107,6 +107,7 @@ export function TestResultPage() {
   const personaName = profile?.archetypeName || primaryCandidate?.name || "旅行画像生成中";
   const personaTagline = profile?.archetypeTagline || primaryCandidate?.tagline || profile?.typeCode || "等待生成你的旅行画像";
   const personaDescription =
+    profile?.archetypeDescription ||
     primaryCandidate?.description ||
     profile?.prompt ||
     "基于你的回答生成的旅行人格画像，将帮助团队更懂彼此，一起规划更合拍的旅行。";

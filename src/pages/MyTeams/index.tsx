@@ -24,11 +24,12 @@ import {
   authService,
   authTokenStorage,
   connectTeamRealtime,
+  getUserAvatarUrl,
   MyTeamsOverviewResponse,
   teamsService,
   TeamCardResponse,
 } from "../../services";
-import avatar from "../../../assets/common/app-header-user-avatar.svg";
+import avatarFallback from "../../../assets/common/app-header-user-avatar.svg";
 import lakeCover from "../../../assets/my-teams/my-teams-card-cover-lake.svg";
 import cityCover from "../../../assets/my-teams/my-teams-card-cover-city.svg";
 import trainCover from "../../../assets/my-teams/my-teams-card-cover-train.svg";
@@ -135,11 +136,11 @@ const mapTeamCard = (team: TeamCardResponse, index: number): TeamCard => ({
   name: team.name || "未命名旅行小队",
   destination: team.destination || "待确认地点",
   members: team.memberCount ?? 1,
-  role: getRoleText(team.role, team.roleText),
-  roleVariant: getRoleVariant(team.role),
+  role: getRoleText(team.currentUserRole || team.role, team.roleText),
+  roleVariant: getRoleVariant(team.currentUserRole || team.role),
   status: team.statusTag || team.teamStatusText || (team.locked ? "已锁定行程" : "行程规划中"),
   statusVariant: getStatusVariant(team),
-  cover: team.avatar || coverFallbacks[index % coverFallbacks.length],
+  cover: team.displayCoverUrl || team.coverUrl || team.avatar || coverFallbacks[index % coverFallbacks.length],
   inviteCode: team.inviteCode || String(team.teamId),
 });
 
@@ -277,6 +278,7 @@ export function MyTeamsPage() {
   const pendingDateCount = stats?.pendingAvailability ?? 0;
   const totalJoined = stats?.totalJoined ?? teamCards.length;
   const nickname = user?.nickname || "旅行者";
+  const userAvatar = getUserAvatarUrl(user) || avatarFallback;
   const isTripProfileCompleted = Boolean(user?.tripProfileCompleted);
   const tripProfileText = user?.tripProfileStatusText || (isTripProfileCompleted ? "已完成测试" : "测试进行中");
   const travelBtiPath = isTripProfileCompleted ? "/travel-bti/result" : "/travel-bti";
@@ -448,7 +450,7 @@ export function MyTeamsPage() {
             <section className="my-teams-overview" aria-label="个人与团队状态">
               <Card className="welcome-card" variant="outlined">
                 <div className="welcome-card__avatar">
-                  <Avatar alt={nickname} size={156} src={avatar} />
+                  <Avatar alt={nickname} size={156} src={userAvatar} />
                 </div>
 
                 <div className="welcome-card__body">

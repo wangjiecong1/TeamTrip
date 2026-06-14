@@ -9,6 +9,8 @@ export type MyTeamsUserSection = {
   userId: number;
   nickname: string;
   avatar?: string;
+  avatarUrl?: string | null;
+  tbtiAvatarUrl?: string | null;
   tripProfileCompleted: boolean;
   tripProfileStatusText?: string;
   styleTags: string[];
@@ -25,6 +27,10 @@ export type TeamCardResponse = {
   teamId: number;
   name: string;
   avatar?: string;
+  displayCoverUrl?: string | null;
+  coverUrl?: string | null;
+  currentUserRole?: "owner" | "member" | string;
+  ownerId?: number;
   destination?: string;
   memberCount: number;
   role: "owner" | "member" | string;
@@ -67,13 +73,28 @@ export type ShareLinkResponse = {
   createTime?: string;
 };
 
+export type UpdateTeamRequest = {
+  name?: string;
+  coverFileId?: number;
+};
+
+export type TeamInviteResponse = {
+  inviteCode: string;
+  teamName: string;
+  inviteText: string;
+  inviteUrl?: string | null;
+};
+
 export type TeamDetailResponse = {
   teamId: number;
   name: string;
   destination?: string;
   avatar?: string;
+  displayCoverUrl?: string | null;
+  coverUrl?: string | null;
   cityThumbnail?: string;
   inviteCode?: string;
+  ownerId?: number;
   ownerNickname?: string;
   totalMemberCount: number;
   memberCount?: number;
@@ -86,6 +107,7 @@ export type TeamDetailResponse = {
   finalStartDate?: string | null;
   finalEndDate?: string | null;
   myRole: "owner" | "member" | string;
+  currentUserRole?: "owner" | "member" | string;
   canLockDates?: boolean;
   canUnlockDates?: boolean;
   statusTag?: string;
@@ -95,6 +117,12 @@ export type TeamMemberResponse = {
   userId: number;
   nickname: string;
   avatar?: string;
+  avatarUrl?: string | null;
+  tbtiAvatarUrl?: string | null;
+  tbtiCompleted?: boolean;
+  tbtiTypeName?: string | null;
+  availabilityCompleted?: boolean;
+  joinedAt?: string;
   role: "owner" | "member" | string;
   roleText?: string;
   tripProfileCompleted: boolean;

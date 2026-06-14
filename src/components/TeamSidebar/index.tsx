@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Layout } from "antd";
-import { CalendarCheck, ChevronDown, ClipboardCheck, Grid2X2, LoaderCircle } from "lucide-react";
+import { CalendarCheck, ChevronDown, ClipboardCheck, Grid2X2, LoaderCircle, Settings2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import avatarFallback from "../../../assets/common/app-header-user-avatar.svg";
 import { BrandMark } from "../BrandMark";
@@ -10,7 +10,7 @@ import "./index.less";
 
 const { Sider } = Layout;
 
-export type TeamSidebarItem = "workspace" | "itinerary" | "final";
+export type TeamSidebarItem = "workspace" | "management" | "itinerary" | "final";
 
 type TeamSidebarUser = {
   avatar?: string | null;
@@ -68,6 +68,7 @@ export function TeamSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const navItems = [
     { key: "workspace" as const, label: "团队工作台", icon: Grid2X2, path: `/teams/${teamId}/workspace` },
+    { key: "management" as const, label: "团队管理", icon: Settings2, path: `/teams/${teamId}/management` },
     {
       key: "itinerary" as const,
       label: "行程规划",

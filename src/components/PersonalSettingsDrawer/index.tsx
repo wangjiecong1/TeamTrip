@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Avatar, Button, Drawer, Form, Input, Skeleton, Tabs, message } from "antd";
 import { Lock, Mail, Phone, ShieldCheck, User } from "lucide-react";
-import { ApiError, authService, UserResponse } from "../../services";
+import { ApiError, authService, getUserAvatarUrl, UserResponse } from "../../services";
 import { StatusTag, StatusTagVariant } from "../StatusTag";
 import defaultAvatar from "../../../assets/common/app-header-user-avatar.svg";
 import "./index.less";
@@ -237,7 +237,7 @@ export function PersonalSettingsDrawer({ open, onClose }: PersonalSettingsDrawer
       ) : (
         <>
           <section className="personal-settings-profile">
-            <Avatar size={72} src={defaultAvatar} />
+            <Avatar size={72} src={getUserAvatarUrl(user) || defaultAvatar} />
             <div>
               <h2>{user?.nickname || user?.username || "旅行者"}</h2>
               <p>{user?.username || "当前登录账号"}</p>

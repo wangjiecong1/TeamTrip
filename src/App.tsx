@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginRegisterPage } from "./pages/LoginRegister";
 import { MyTeamsPage } from "./pages/MyTeams";
 import { TeamWorkspacePage } from "./pages/TeamWorkspace";
+import { TeamManagementPage } from "./pages/TeamManagement";
 import { FinalItineraryPage } from "./pages/FinalItinerary";
 import { ItineraryPlanningPage } from "./pages/ItineraryPlanning";
 import { TestResultPage } from "./pages/TestResult";
@@ -22,6 +23,14 @@ export default function App() {
           element={
             <RequireAuth>
               <TeamWorkspacePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/teams/:teamId/management"
+          element={
+            <RequireAuth>
+              <TeamManagementPage />
             </RequireAuth>
           }
         />

@@ -1,0 +1,487 @@
+.team-management-page {
+  min-height: 100vh;
+  color: var(--tt-text);
+  background:
+    linear-gradient(180deg, rgba(247, 250, 252, 0.94), rgba(247, 250, 252, 0.84)),
+    url("../../../assets/my-teams/my-teams-page-background.webp") center bottom / cover no-repeat;
+}
+
+.team-management-main-layout {
+  min-width: 0;
+  background: transparent;
+  container: team-management-main / inline-size;
+}
+
+.team-management-main {
+  width: min(calc(100% - 40px), 1360px);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+
+.team-management-shell {
+  display: grid;
+  gap: 22px;
+}
+
+.team-management-hero-card,
+.team-management-card {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 18px 42px rgba(15, 35, 55, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.team-management-hero-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  min-height: 178px;
+  padding: 28px;
+  border-radius: 26px;
+}
+
+.team-management-hero-card__icon,
+.team-management-modal-icon {
+  display: grid;
+  place-items: center;
+  color: #008f82;
+  background: var(--tt-primary-soft);
+}
+
+.team-management-hero-card__icon {
+  width: 66px;
+  height: 66px;
+  border-radius: 22px;
+}
+
+.team-management-title-row,
+.team-management-card-header,
+.team-management-section-header,
+.team-management-member__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.team-management-title-row {
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--tt-primary);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.team-management-hero-card h2 {
+  margin: 0;
+  color: var(--tt-text);
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.team-management-hero-card p {
+  margin: 12px 0 0;
+  color: var(--tt-text-secondary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.team-management-hero-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.team-management-primary-button,
+.team-management-outline-button,
+.team-management-text-button,
+.team-management-danger-button,
+.team-management-cover-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 14px;
+  font-weight: 800;
+  transition: all 180ms ease;
+}
+
+.team-management-primary-button,
+.team-management-outline-button {
+  height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+.team-management-primary-button {
+  color: #fff;
+  background: linear-gradient(135deg, #00a889 0%, #07967e 100%);
+  border: 1px solid #07967e;
+  box-shadow: 0 8px 18px rgba(0, 168, 137, 0.18);
+}
+
+.team-management-outline-button {
+  color: #07967e;
+  background: #fff;
+  border: 1px solid rgba(0, 168, 137, 0.38);
+}
+
+.team-management-text-button {
+  height: 34px;
+  padding: 0 12px;
+  color: #07967e;
+  background: var(--tt-primary-soft);
+  border: 1px solid rgba(0, 168, 137, 0.18);
+  font-size: 13px;
+}
+
+.team-management-danger-button {
+  height: 34px;
+  padding: 0 12px;
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  font-size: 13px;
+}
+
+.team-management-primary-button:hover,
+.team-management-outline-button:hover,
+.team-management-text-button:hover,
+.team-management-danger-button:hover,
+.team-management-cover-action:hover {
+  transform: translateY(-1px);
+}
+
+.team-management-primary-button:disabled,
+.team-management-outline-button:disabled,
+.team-management-text-button:disabled,
+.team-management-danger-button:disabled,
+.team-management-cover-action:disabled,
+.team-management-invite-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+  transform: none;
+}
+
+.team-management-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.36fr) minmax(0, 1fr);
+  gap: 22px;
+}
+
+.team-management-left-column {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.team-management-card {
+  padding: 22px;
+  border-radius: 22px;
+}
+
+.team-management-card-header,
+.team-management-section-header {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.team-management-card h3,
+.team-management-section-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: var(--tt-text);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.team-management-card h3 svg,
+.team-management-section-header h3 svg {
+  color: #008f82;
+}
+
+.team-management-cover-preview {
+  position: relative;
+  overflow: hidden;
+  height: 184px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 20px;
+  background: var(--tt-bg);
+}
+
+.team-management-cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-management-cover-action {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  height: 36px;
+  padding: 0 14px;
+  color: #fff;
+  background: rgba(0, 143, 130, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 10px 22px rgba(15, 35, 55, 0.18);
+}
+
+.team-management-info-list {
+  display: grid;
+  gap: 12px;
+}
+
+.team-management-info-list > div {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  background: var(--tt-bg);
+  border: 1px solid var(--tt-border);
+  border-radius: 16px;
+}
+
+.team-management-info-list span,
+.team-management-invite-card span,
+.team-management-member span,
+.team-management-section-header > span,
+.team-management-empty-text,
+.team-management-permission-hint,
+.team-management-modal-content p,
+.team-management-upload-panel p {
+  color: var(--tt-text-secondary);
+  font-size: 13px;
+}
+
+.team-management-info-list strong,
+.team-management-invite-card strong,
+.team-management-member strong {
+  color: var(--tt-text);
+  font-weight: 800;
+}
+
+.team-management-permission-hint {
+  margin: 14px 0 0;
+  line-height: 1.6;
+}
+
+.team-management-invite-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  width: 100%;
+  margin-top: 16px;
+  padding: 16px;
+  text-align: left;
+  background: linear-gradient(135deg, var(--tt-primary-soft), #fff);
+  border: 1px solid rgba(0, 168, 137, 0.22);
+  border-radius: 18px;
+  transition: all 180ms ease;
+}
+
+.team-management-invite-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 168, 137, 0.38);
+}
+
+.team-management-invite-card strong {
+  grid-column: 1;
+  font-size: 24px;
+  letter-spacing: 0.08em;
+}
+
+.team-management-invite-card svg {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: #008f82;
+}
+
+.team-management-section-header > span {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  background: var(--tt-primary-soft);
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.team-management-member-list {
+  display: grid;
+  gap: 12px;
+}
+
+.team-management-member {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 78px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--tt-border);
+  border-radius: 18px;
+}
+
+.team-management-member img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.team-management-member > div:not(.team-management-member__actions) {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.team-management-member strong {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.team-management-member strong svg {
+  flex: 0 0 auto;
+  color: #f97316;
+}
+
+.team-management-member__actions {
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 300px;
+}
+
+.team-management-member__actions .tt-status-tag {
+  justify-self: end;
+}
+
+.team-management-error-state {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 44px 28px;
+  color: var(--tt-text-secondary);
+  text-align: center;
+}
+
+.team-management-error-state svg {
+  color: #f97316;
+}
+
+.team-management-error-state strong {
+  color: var(--tt-text);
+  font-size: 18px;
+}
+
+.team-management-empty-text {
+  margin: 6px 0 0;
+}
+
+.team-management-modal-content {
+  display: grid;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.team-management-modal-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+}
+
+.team-management-modal-content p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.team-management-modal-content .ant-input {
+  height: 44px;
+  border-radius: 12px;
+}
+
+.team-management-upload-panel {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.team-management-upload-panel > img {
+  width: 100%;
+  height: 240px;
+  border: 1px solid var(--tt-border);
+  border-radius: 20px;
+  object-fit: cover;
+}
+
+.team-management-upload-panel p {
+  margin: 0;
+}
+
+@container team-management-main (max-width: 1120px) {
+  .team-management-member {
+    grid-template-columns: 50px minmax(0, 1fr);
+  }
+
+  .team-management-member__actions {
+    grid-column: 2;
+    justify-content: flex-start;
+    max-width: none;
+  }
+}
+
+@container team-management-main (max-width: 980px) {
+  .team-management-hero-card,
+  .team-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-management-hero-card__actions {
+    justify-content: flex-start;
+  }
+}
+
+@container team-management-main (max-width: 640px) {
+  .team-management-hero-card {
+    padding: 22px;
+  }
+
+  .team-management-primary-button,
+  .team-management-outline-button,
+  .team-management-hero-card__actions,
+  .team-management-member__actions .team-management-text-button,
+  .team-management-member__actions .team-management-danger-button {
+    width: 100%;
+  }
+
+  .team-management-member {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .team-management-member img {
+    width: 46px;
+    height: 46px;
+  }
+
+  .team-management-member__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .team-management-main {
+    width: min(calc(100% - 28px), 560px);
+  }
+}

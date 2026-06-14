@@ -21,6 +21,7 @@ export type UserResponse = {
   phone?: string | null;
   avatar?: string | null;
   avatarUrl?: string | null;
+  tbtiAvatarUrl?: string | null;
   status?: number;
   statusText?: string | null;
   userType?: number;

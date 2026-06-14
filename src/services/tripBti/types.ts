@@ -70,6 +70,7 @@ export type TripBtiProfile = {
   archetypeCode?: string | null;
   archetypeName?: string | null;
   archetypeTagline?: string | null;
+  archetypeDescription?: string | null;
   archetypeCalcAt?: string;
   keywords?: string[];
   archetypeCandidates?: ArchetypeCandidate[];

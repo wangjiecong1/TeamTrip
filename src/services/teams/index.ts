@@ -19,10 +19,12 @@ export type {
   TeamCalendarResponse,
   TeamCardResponse,
   TeamDetailResponse,
+  TeamInviteResponse,
   TeamMemberResponse,
   TeamMembersResponse,
   TeamPortraitArchetype,
   TeamPortraitDimension,
   TeamPortraitResponse,
+  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./types";

@@ -153,6 +153,7 @@ export function ItineraryAmap({
   const onSearchErrorRef = useRef(onSearchError);
   const [status, setStatus] = useState<MapStatus>("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [initLocationHint, setInitLocationHint] = useState("");
 
   useEffect(() => {
     onSearchResultsRef.current = onSearchResults;
@@ -175,8 +176,11 @@ export function ItineraryAmap({
     }
 
     let disposed = false;
+    const normalizedDestination = destination.trim();
+
     setStatus("loading");
     setErrorMessage("");
+    setInitLocationHint("");
     window._AMapSecurityConfig = serviceHost ? { serviceHost } : { securityJsCode };
 
     AMapLoader.load({
@@ -204,29 +208,56 @@ export function ItineraryAmap({
         map.addControl(new AMap.Scale());
         map.addControl(new AMap.ToolBar({ position: "RT" }));
 
-        const geocoder = new AMap.Geocoder({ city: destination || "全国" });
-        geocoder.getLocation(destination || "杭州", (geocoderStatus, result) => {
-          if (disposed) {
-            return;
-          }
-
-          const location = result.geocodes?.[0]?.location;
-          const position = location ? toMapPosition(location.lng, location.lat) : null;
-
-          if (geocoderStatus === "complete" && result.info === "OK" && position) {
-            map.setZoomAndCenter(12, position);
-            map.add(
-              new AMap.Marker({
-                anchor: "bottom-center",
-                content: '<div class="itinerary-amap-marker"><span></span></div>',
-                position,
-                title: destination,
-              }),
-            );
+        const showDefaultMap = () => {
+          if (normalizedDestination) {
+            setInitLocationHint(`未能精确定位「${normalizedDestination}」，已先展示默认地图，可继续搜索具体地点`);
           }
 
           setStatus("ready");
-        });
+        };
+        let geocoderFinished = false;
+        const fallbackTimer = window.setTimeout(() => {
+          if (disposed || geocoderFinished) {
+            return;
+          }
+
+          geocoderFinished = true;
+          showDefaultMap();
+        }, 3000);
+
+        try {
+          const geocoder = new AMap.Geocoder({ city: "全国" });
+          geocoder.getLocation(normalizedDestination || "杭州", (geocoderStatus, result) => {
+            if (disposed || geocoderFinished) {
+              return;
+            }
+
+            geocoderFinished = true;
+            window.clearTimeout(fallbackTimer);
+
+            const location = result.geocodes?.[0]?.location;
+            const position = location ? toMapPosition(location.lng, location.lat) : null;
+
+            if (geocoderStatus === "complete" && result.info === "OK" && position) {
+              map.setZoomAndCenter(12, position);
+              map.add(
+                new AMap.Marker({
+                  anchor: "bottom-center",
+                  content: '<div class="itinerary-amap-marker"><span></span></div>',
+                  position,
+                  title: normalizedDestination,
+                }),
+              );
+              setStatus("ready");
+              return;
+            }
+
+            showDefaultMap();
+          });
+        } catch {
+          window.clearTimeout(fallbackTimer);
+          showDefaultMap();
+        }
       })
       .catch((error: unknown) => {
         if (!disposed) {
@@ -333,6 +364,13 @@ export function ItineraryAmap({
   return (
     <section className={`itinerary-amap-slot is-${status}`} aria-label="高德地图">
       <div ref={containerRef} className="itinerary-amap-slot__mount" />
+
+      {status === "ready" && initLocationHint && !selectedPlace && (
+        <div className="itinerary-amap-slot__hint" role="status">
+          <MapPin size={15} />
+          <span>{initLocationHint}</span>
+        </div>
+      )}
 
       {status === "ready" && selectedPlace && (
         <article

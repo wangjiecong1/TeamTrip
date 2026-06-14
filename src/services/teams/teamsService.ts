@@ -12,8 +12,10 @@ import {
   TeamCalendarResponse,
   TeamCardResponse,
   TeamDetailResponse,
+  TeamInviteResponse,
   TeamMembersResponse,
   TeamPortraitResponse,
+  UpdateTeamRequest,
   WorkbenchPreparationResponse,
 } from "./types";
 
@@ -42,17 +44,100 @@ const unwrapApiResponse = <T>(response: T | ApiResponse<T>): T => {
   return response as T;
 };
 
+const normalizeMember = (member: TeamMembersResponse["items"][number]): TeamMembersResponse["items"][number] => ({
+  ...member,
+  avatar: member.tbtiAvatarUrl || member.avatarUrl || member.avatar,
+  roleText: member.role === "owner" ? "Owner" : member.roleText || "成员",
+  tripProfileCompleted: member.tripProfileCompleted ?? Boolean(member.tbtiCompleted),
+  availabilitySubmitted: member.availabilitySubmitted ?? Boolean(member.availabilityCompleted),
+});
+
+const normalizeMembersResponse = (
+  membersResponse: TeamMembersResponse | { total?: number; members: TeamMembersResponse["items"] } | TeamMembersResponse["items"],
+): TeamMembersResponse => {
+  if (Array.isArray(membersResponse)) {
+    return {
+      total: membersResponse.length,
+      items: membersResponse.map(normalizeMember),
+    };
+  }
+
+  if ("members" in membersResponse) {
+    return {
+      total: membersResponse.total ?? membersResponse.members.length,
+      items: membersResponse.members.map(normalizeMember),
+    };
+  }
+
+  return {
+    ...membersResponse,
+    items: membersResponse.items.map(normalizeMember),
+  };
+};
+
+type TeamRoleSource = {
+  currentUserRole?: "owner" | "member" | string;
+  role?: "owner" | "member" | string;
+  myRole?: "owner" | "member" | string;
+};
+
+const getTeamRole = (team: TeamRoleSource) => team.currentUserRole || team.role || team.myRole || "member";
+
+const getDisplayCoverUrl = (team: Pick<TeamCardResponse, "avatar" | "coverUrl">) => team.coverUrl || team.avatar || null;
+
+const normalizeTeamCard = (team: TeamCardResponse): TeamCardResponse => {
+  const role = getTeamRole(team);
+
+  return {
+    ...team,
+    currentUserRole: role,
+    role,
+    displayCoverUrl: getDisplayCoverUrl(team),
+  };
+};
+
+const normalizeTeamDetail = (team: TeamDetailResponse | TeamCardResponse): TeamDetailResponse => {
+  const role = getTeamRole(team);
+  const dateLocked =
+    team.dateLocked === true ||
+    Number(team.dateLocked) === 1 ||
+    Boolean(team.finalStartDate && team.finalEndDate);
+  const memberCount = team.memberCount ?? ("totalMemberCount" in team ? team.totalMemberCount : undefined) ?? 0;
+
+  return {
+    ...team,
+    displayCoverUrl: getDisplayCoverUrl(team),
+    dateLocked,
+    locked: Boolean(team.locked),
+    totalMemberCount: "totalMemberCount" in team ? team.totalMemberCount ?? memberCount : memberCount,
+    memberCount,
+    myRole: role,
+    currentUserRole: role,
+    canLockDates: role === "owner" && !dateLocked,
+    canUnlockDates: role === "owner" && dateLocked,
+  };
+};
+
 export const teamsService = {
   getOverview: async (): Promise<MyTeamsOverviewResponse> => {
     const response = await apiClient.get<MyTeamsOverviewResponse | ApiResponse<MyTeamsOverviewResponse>>("/api/v1/teams/overview");
 
-    return unwrapApiResponse(response.data);
+    const overview = unwrapApiResponse(response.data);
+
+    return {
+      ...overview,
+      teams: (overview.teams || []).map(normalizeTeamCard),
+      user: {
+        ...overview.user,
+        avatar: overview.user.tbtiAvatarUrl || overview.user.avatarUrl || overview.user.avatar,
+      },
+    };
   },
 
   createTeam: async (request: CreateTeamRequest): Promise<TeamCardResponse> => {
     const response = await apiClient.post<TeamCardResponse | ApiResponse<TeamCardResponse>>("/api/v1/teams", request);
 
-    return unwrapApiResponse(response.data);
+    return normalizeTeamCard(unwrapApiResponse(response.data));
   },
 
   leaveTeam: async (teamId: string | number): Promise<void> => {
@@ -64,7 +149,12 @@ export const teamsService = {
   joinTeam: async (request: JoinTeamRequest): Promise<JoinTeamResponse> => {
     const response = await apiClient.post<JoinTeamResponse | ApiResponse<JoinTeamResponse>>("/api/v1/teams/join", request);
 
-    return unwrapApiResponse(response.data);
+    const joined = unwrapApiResponse(response.data);
+
+    return {
+      ...joined,
+      team: normalizeTeamCard(joined.team),
+    };
   },
 
   createShareLink: async (teamId: string | number): Promise<ShareLinkResponse> => {
@@ -74,23 +164,11 @@ export const teamsService = {
   },
 
   getDetail: async (teamId: string | number): Promise<TeamDetailResponse> => {
-    const response = await apiClient.get<TeamCardResponse | ApiResponse<TeamCardResponse>>(`/api/v1/teams/${teamId}`);
-    const team = unwrapApiResponse(response.data);
-    const dateLocked =
-      team.dateLocked === true ||
-      Number(team.dateLocked) === 1 ||
-      Boolean(team.finalStartDate && team.finalEndDate);
+    const response = await apiClient.get<
+      TeamDetailResponse | TeamCardResponse | ApiResponse<TeamDetailResponse | TeamCardResponse>
+    >(`/api/v1/teams/${teamId}`);
 
-    return {
-      ...team,
-      dateLocked,
-      locked: Boolean(team.locked),
-      totalMemberCount: team.memberCount,
-      memberCount: team.memberCount,
-      myRole: team.role,
-      canLockDates: team.role === "owner" && !dateLocked,
-      canUnlockDates: team.role === "owner" && dateLocked,
-    };
+    return normalizeTeamDetail(unwrapApiResponse(response.data));
   },
 
   getMembers: async (teamId: string | number): Promise<TeamMembersResponse> => {
@@ -101,17 +179,39 @@ export const teamsService = {
     >(`/api/v1/teams/${teamId}/workbench/members`);
     const membersResponse = unwrapApiResponse(response.data);
 
-    if ("members" in membersResponse) {
-      return {
-        total: membersResponse.total,
-        items: membersResponse.members.map((member) => ({
-          ...member,
-          roleText: member.role === "owner" ? "Owner" : "成员",
-        })),
-      };
-    }
+    return normalizeMembersResponse(membersResponse);
+  },
 
-    return membersResponse;
+  getManagementMembers: async (teamId: string | number): Promise<TeamMembersResponse> => {
+    return teamsService.getMembers(teamId);
+  },
+
+  getInvite: async (teamId: string | number): Promise<TeamInviteResponse> => {
+    const response = await apiClient.get<TeamInviteResponse | ApiResponse<TeamInviteResponse>>(`/api/v1/teams/${teamId}/invite`);
+
+    return unwrapApiResponse(response.data);
+  },
+
+  updateTeam: async (teamId: string | number, request: UpdateTeamRequest): Promise<TeamDetailResponse> => {
+    const response = await apiClient.patch<
+      TeamDetailResponse | TeamCardResponse | ApiResponse<TeamDetailResponse | TeamCardResponse>
+    >(`/api/v1/teams/${teamId}`, request);
+
+    return normalizeTeamDetail(unwrapApiResponse(response.data));
+  },
+
+  removeMember: async (teamId: string | number, userId: string | number): Promise<void> => {
+    const response = await apiClient.delete<ApiResponse<unknown> | unknown>(`/api/v1/teams/${teamId}/members/${userId}`);
+
+    unwrapApiResponse(response.data);
+  },
+
+  transferOwner: async (teamId: string | number, targetUserId: string | number): Promise<void> => {
+    const response = await apiClient.post<ApiResponse<unknown> | unknown>(`/api/v1/teams/${teamId}/transfer-owner`, {
+      targetUserId,
+    });
+
+    unwrapApiResponse(response.data);
   },
 
   getPortrait: async (teamId: string | number): Promise<TeamPortraitResponse> => {

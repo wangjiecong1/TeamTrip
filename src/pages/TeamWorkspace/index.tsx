@@ -319,7 +319,7 @@ export function TeamWorkspacePage() {
   const currentMember =
     members.find((member) => String(member.userId) === String(storedUserId)) ||
     (detail?.myRole === "owner" ? members.find((member) => member.role === "owner") : undefined);
-  const coverImage = detail?.cityThumbnail || detail?.avatar || teamCover;
+  const coverImage = detail?.displayCoverUrl || detail?.cityThumbnail || detail?.coverUrl || detail?.avatar || teamCover;
   const ownerName = detail?.ownerNickname || members.find((member) => member.role === "owner")?.nickname || "团队创建者";
   const tripProfilePendingMembers = members.filter((member) => !member.tripProfileCompleted);
   const availabilityPendingMembers = members.filter((member) => !member.availabilitySubmitted);

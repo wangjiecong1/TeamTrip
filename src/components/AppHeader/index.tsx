@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Avatar, Button } from "antd";
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, Plus, UserPlus } from "lucide-react";
 import logoPin from "../../../assets/common/app-header-logo-pin.svg";
-import avatar from "../../../assets/common/app-header-user-avatar.svg";
+import avatarFallback from "../../../assets/common/app-header-user-avatar.svg";
+import { getUserAvatarUrl, UserResponse } from "../../services";
 import { UserAccountMenu } from "../UserAccountMenu";
 import "./index.less";
 
@@ -37,6 +38,15 @@ export function AppHeader({
       { label: "创建团队", icon: Plus, onClick: onCreateTeam, variant: "primary" as const },
       { label: "加入团队", icon: UserPlus, onClick: onJoinTeam, variant: "outline" as const },
     ];
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("teamtrip-auth-user") || "null") as UserResponse | null;
+    } catch {
+      return null;
+    }
+  }, []);
+  const userAvatar = getUserAvatarUrl(storedUser) || avatarFallback;
+
   return (
     <header className="app-header">
         <div className="app-header__brand">
@@ -62,7 +72,7 @@ export function AppHeader({
           {showUserMenu && (
             <UserAccountMenu onLogout={onLogout}>
               <Button className="app-header__avatar-button" htmlType="button" type="text">
-                <Avatar alt="用户头像" size={46} src={avatar} />
+                <Avatar alt="用户头像" size={46} src={userAvatar} />
                 <ChevronDown size={20} />
               </Button>
             </UserAccountMenu>

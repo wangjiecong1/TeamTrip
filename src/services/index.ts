@@ -1,4 +1,5 @@
 export { authService } from "./auth";
+export { getUserAvatarUrl } from "./auth";
 export type { LoginRequest, LoginResponse, RegisterRequest, UserResponse } from "./auth";
 export { tripBtiService } from "./tripBti";
 export type {
@@ -13,6 +14,8 @@ export type {
   TripBtiQuestionsResponse,
 } from "./tripBti";
 export { teamsService } from "./teams";
+export { uploadService } from "./upload";
+export type { UploadBizType, UploadFileResponse } from "./upload";
 export { connectTeamRealtime } from "./teams";
 export type { TeamRealtimeEventName, TeamRealtimeFrame } from "./teams";
 export type {
@@ -33,6 +36,7 @@ export type {
   TeamCalendarResponse,
   TeamCardResponse,
   TeamDetailResponse,
+  TeamInviteResponse,
   TeamMemberResponse,
   TeamMembersResponse,
   TeamPortraitDimension,
